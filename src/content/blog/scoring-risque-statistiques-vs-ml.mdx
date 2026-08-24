@@ -1,0 +1,58 @@
+---
+title: "Scoring de risque : méthodes statistiques vs Machine Learning"
+description: "Régression logistique et GLM face à XGBoost — quand le gain de performance justifie la perte d'explicabilité, et quand il ne la justifie pas."
+pillar: "risk-modeling"
+entryNumber: 12
+publishDate: 2026-09-24
+---
+
+Opposer "statistiques classiques" et "Machine Learning" en scoring de risque est un faux débat
+technique qui cache un vrai arbitrage : performance brute contre explicabilité et stabilité
+réglementaire.
+
+## Ce que les méthodes statistiques offrent encore
+
+La régression logistique et les GLM (modèles linéaires généralisés) restent dominants dans de
+nombreux contextes de risque, pour des raisons qui ne sont pas de la nostalgie :
+
+- **Coefficients directement interprétables** — un régulateur ou un analyste métier peut lire
+  l'effet de chaque variable sans outil d'explicabilité additionnel.
+- **Comportement prévisible** — la relation entre variables et score est monotone et connue à
+  l'avance, ce qui facilite l'audit et la détection d'anomalies.
+- **Moins de risque de surapprentissage** avec un nombre limité de variables, sur des jeux de
+  données de taille modeste.
+
+## Ce que le Machine Learning apporte
+
+```python
+from sklearn.linear_model import LogisticRegression
+import xgboost as xgb
+from sklearn.metrics import roc_auc_score
+
+logit = LogisticRegression(max_iter=1000).fit(X_train, y_train)
+xgb_model = xgb.XGBClassifier(max_depth=5, n_estimators=200).fit(X_train, y_train)
+
+print("Logit AUC:", roc_auc_score(y_test, logit.predict_proba(X_test)[:, 1]))
+print("XGBoost AUC:", roc_auc_score(y_test, xgb_model.predict_proba(X_test)[:, 1]))
+```
+
+Sur des données avec des interactions non linéaires entre variables (ce qui est fréquent en
+risque de crédit ou en tarification assurantielle), un modèle à base d'arbres capture souvent
+un gain d'AUC réel — de quelques points à parfois beaucoup plus, selon la richesse des
+interactions présentes dans les données.
+
+## L'approche du modèle challenger
+
+Beaucoup d'équipes de risque évitent le choix binaire en déployant un **modèle challenger** :
+le GLM reste le modèle de production officiel, utilisé pour les décisions, tandis qu'un modèle
+ML tourne en parallèle sur les mêmes données pour évaluer le gain de performance potentiel.
+Si l'écart reste significatif et stable dans le temps, il justifie d'investir dans
+l'explicabilité du modèle ML (SHAP, par exemple) pour le faire progressivement remplacer le
+GLM — plutôt que de basculer directement sans historique de comparaison.
+
+## La vraie question à se poser
+
+Ce n'est pas "quel modèle a la meilleure AUC" mais "le gain de performance couvre-t-il le coût
+de complexité, d'explicabilité et de gouvernance supplémentaire". Sur un segment de risque
+stable et déjà bien compris, un GLM bien calibré peut rester le meilleur choix même face à un
+modèle ML plus précis de quelques points.

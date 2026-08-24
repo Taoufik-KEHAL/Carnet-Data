@@ -1,0 +1,68 @@
+---
+title: "Pipeline CI/CD pour un projet de Data Science"
+description: "Automatiser l'entraînement, la validation et le déploiement d'un modèle, en adaptant le CI/CD classique aux spécificités du Machine Learning."
+pillar: "mlops"
+entryNumber: 5
+publishDate: 2026-08-31
+---
+
+Le CI/CD appliqué au code fonctionne bien : on teste, on build, on déploie. Appliqué à un
+modèle de Machine Learning, il faut ajouter une étape que le DevOps classique ignore : valider
+que le modèle est *bon*, pas seulement que le code compile.
+
+## Ce qui change par rapport au CI/CD classique
+
+Un pipeline ML doit répondre à des questions qu'un pipeline logiciel ne se pose pas :
+
+- Les données d'entrée respectent-elles le schéma attendu ?
+- Le modèle nouvellement entraîné est-il au moins aussi performant que celui en production ?
+- Le temps d'inférence reste-t-il compatible avec les contraintes de latence ?
+
+Un pipeline qui déploie automatiquement un modèle moins performant que le précédent, sous
+prétexte que "les tests unitaires passent", n'a résolu qu'une partie du problème.
+
+## Structure d'un pipeline minimal
+
+```yaml
+# .github/workflows/ml-pipeline.yml
+jobs:
+  test-code:
+    steps:
+      - run: pytest tests/
+
+  validate-data:
+    needs: test-code
+    steps:
+      - run: python scripts/validate_schema.py
+
+  train-and-evaluate:
+    needs: validate-data
+    steps:
+      - run: python scripts/train.py
+      - run: python scripts/evaluate.py --min-auc 0.75
+
+  register-model:
+    needs: train-and-evaluate
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - run: python scripts/register_model.py --stage Staging
+```
+
+L'étape `evaluate.py --min-auc 0.75` est la clé : elle fait échouer le pipeline si le modèle
+ne dépasse pas un seuil de performance fixé à l'avance, exactement comme un test unitaire fait
+échouer un build.
+
+## Le déploiement reste une décision, pas un automatisme total
+
+Passer un modèle de `Staging` à `Production` mérite en général une validation humaine, au moins
+tant que l'équipe n'a pas une confiance établie dans le pipeline. Une approche courante :
+automatiser entièrement l'entraînement et l'évaluation, mais garder une étape d'approbation
+manuelle avant la bascule en production — via une pull request sur le Model Registry ou une
+validation explicite dans l'outil de CI.
+
+## Le piège à éviter
+
+Ne pas confondre "le pipeline tourne sans erreur" avec "le modèle déployé est fiable". Un
+pipeline vert peut très bien déployer un modèle qui a surappris sur un jeu de test devenu, avec
+le temps, non représentatif. Le CI/CD automatise l'exécution, pas le jugement — les seuils de
+validation doivent être revus régulièrement, pas fixés une fois pour toutes.

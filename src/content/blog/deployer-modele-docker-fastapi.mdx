@@ -1,0 +1,74 @@
+---
+title: "Déployer un modèle ML avec Docker et FastAPI"
+description: "Empaqueter un modèle entraîné dans une API REST reproductible, du fichier modèle jusqu'au conteneur prêt pour la production."
+pillar: "mlops"
+entryNumber: 8
+publishDate: 2026-09-10
+---
+
+Un modèle entraîné et sauvegardé dans un fichier `.pkl` n'est utile à personne tant qu'il n'est
+pas accessible via une interface que d'autres services peuvent appeler. FastAPI et Docker
+forment une combinaison simple et suffisante pour la grande majorité des cas d'usage.
+
+## L'API de prédiction
+
+```python
+# app.py
+from fastapi import FastAPI
+import joblib
+import pandas as pd
+
+app = FastAPI()
+model = joblib.load("modele.pkl")
+
+@app.post("/predict")
+def predict(features: dict):
+    X = pd.DataFrame([features])
+    proba = model.predict_proba(X)[0][1]
+    return {"probabilite": round(float(proba), 4)}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+
+L'endpoint `/health` n'est pas accessoire : c'est ce que l'orchestrateur (Kubernetes, un load
+balancer) utilise pour savoir si l'instance est prête à recevoir du trafic.
+
+## Le Dockerfile
+
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY modele.pkl app.py .
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+L'intérêt du conteneur n'est pas seulement le déploiement : c'est la garantie que les versions
+de scikit-learn, pandas et Python utilisées en production sont exactement celles avec
+lesquelles le modèle a été entraîné. Un décalage de version, même mineur, peut changer
+silencieusement le comportement du modèle.
+
+## Tester avant de déployer
+
+```bash
+docker build -t scoring-api .
+docker run -p 8000:8000 scoring-api
+
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"age": 34, "revenu": 42000, "anciennete": 5}'
+```
+
+## Ce que cette approche ne couvre pas
+
+Ce montage convient bien à un trafic modéré avec une latence d'inférence raisonnable. Pour un
+volume élevé ou des besoins de scaling automatique, il faudra ajouter un orchestrateur
+(Kubernetes) et probablement séparer le chargement du modèle du cycle de vie de l'API — par
+exemple via un serveur de modèles dédié (BentoML, Triton). Mais pour un premier déploiement ou
+une API interne à faible trafic, Docker et FastAPI suffisent largement, sans complexité inutile.

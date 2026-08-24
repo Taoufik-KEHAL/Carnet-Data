@@ -1,0 +1,64 @@
+---
+title: "Construire un pipeline ETL avec Airflow"
+description: "Orchestrer l'extraction, la transformation et le chargement de données avec des DAGs fiables, plutôt qu'avec des scripts cron fragiles."
+pillar: "big-data-cloud"
+entryNumber: 13
+publishDate: 2026-09-28
+---
+
+Un pipeline ETL construit avec des tâches cron isolées fonctionne jusqu'au jour où une étape
+échoue silencieusement et où personne ne le remarque avant que les données en aval soient
+fausses depuis trois jours. Airflow résout ce problème en rendant les dépendances et les
+échecs explicites.
+
+## Le DAG comme unité de base
+
+Un DAG (*Directed Acyclic Graph*) décrit les tâches et leurs dépendances, pas leur horaire
+d'exécution seul :
+
+```python
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+
+with DAG(
+    dag_id="etl_transactions",
+    schedule="@daily",
+    start_date=datetime(2026, 1, 1),
+    catchup=False,
+) as dag:
+
+    extraire = PythonOperator(task_id="extraire", python_callable=extraire_donnees)
+    transformer = PythonOperator(task_id="transformer", python_callable=transformer_donnees)
+    charger = PythonOperator(task_id="charger", python_callable=charger_donnees)
+
+    extraire >> transformer >> charger
+```
+
+L'opérateur `>>` rend la dépendance explicite : `transformer` ne démarre que si `extraire` a
+réussi. Si une étape échoue, Airflow le signale et ne propage pas des données incomplètes en
+aval sans avertissement.
+
+## Idempotence : la règle non négociable
+
+Une tâche Airflow doit pouvoir être relancée plusieurs fois sans dupliquer ou corrompre les
+données — un DAG qui `INSERT` sans jamais vérifier l'existence préalable des lignes casse dès
+le premier retry automatique. Privilégier des opérations `MERGE`/`UPSERT`, ou écraser une
+partition complète plutôt que d'ajouter incrémentalement, rend chaque tâche rejouable en
+confiance.
+
+## Un piège fréquent : XCom pour de gros volumes
+
+XCom (le mécanisme de passage de données entre tâches Airflow) est fait pour transmettre de
+petites informations — un chemin de fichier, un identifiant, un statut — pas des DataFrames
+entiers. Faire transiter de gros volumes de données par XCom sature le backend de métadonnées
+d'Airflow. La bonne pratique : chaque tâche écrit son résultat dans un stockage intermédiaire
+(S3, un data lake), et ne transmet via XCom que le chemin vers ce résultat.
+
+## Alerting et observabilité
+
+Un pipeline qui échoue sans alerter personne n'apporte aucune garantie de fiabilité
+supplémentaire par rapport à un script cron. Configurer les callbacks `on_failure_callback`
+(Slack, email, PagerDuty) dès la mise en place du DAG, pas après le premier incident en
+production — c'est souvent la partie négligée d'un premier pipeline Airflow, alors qu'elle en
+est la vraie valeur ajoutée par rapport à un ordonnanceur basique.

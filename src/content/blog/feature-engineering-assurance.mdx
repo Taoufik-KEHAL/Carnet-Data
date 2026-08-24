@@ -1,0 +1,54 @@
+---
+title: "Feature engineering pour données assurantielles"
+description: "Transformer des données de contrats et de sinistres brutes en variables prédictives — et éviter les pièges spécifiques à l'assurance."
+pillar: "risk-modeling"
+entryNumber: 6
+publishDate: 2026-09-03
+---
+
+Les données assurantielles ont une particularité que peu de tutoriels de Machine Learning
+abordent : chaque ligne n'est pas une observation isolée, mais un contrat exposé au risque
+pendant une durée variable. Ignorer cette exposition fausse la plupart des features qu'on en
+tire naïvement.
+
+## L'exposition, la variable qu'on oublie
+
+Un contrat souscrit pour 3 mois et un contrat souscrit pour 12 mois n'ont pas la même
+probabilité d'avoir un sinistre, toutes choses égales par ailleurs. La feature de base en
+assurance n'est donc pas "nombre de sinistres" mais **fréquence de sinistres par unité
+d'exposition** :
+
+```python
+df["frequence"] = df["nb_sinistres"] / df["exposition_annees"]
+df["cout_moyen"] = df["montant_sinistres"] / df["nb_sinistres"].replace(0, pd.NA)
+```
+
+Construire un modèle sur des comptages bruts sans normaliser par l'exposition revient à
+comparer des profils qui n'ont pas été observés pendant la même durée.
+
+## Variables temporelles et d'ancienneté
+
+L'ancienneté du contrat et l'historique du client sont souvent plus prédictifs que les
+caractéristiques déclaratives initiales :
+
+- **Ancienneté du contrat** — un nouveau client a statistiquement un profil de risque moins
+  stable qu'un client fidèle depuis plusieurs années.
+- **Historique de sinistralité glissant** — nombre de sinistres sur les 12 ou 36 derniers mois,
+  plus informatif qu'un cumul depuis la souscription.
+- **Délai depuis le dernier sinistre** — un proxy de risque à court terme utilisé en
+  tarification automobile notamment.
+
+## Encodage géographique et catégoriel
+
+Les zones géographiques (code postal, zone de tarification) ont une cardinalité élevée et une
+relation non linéaire avec le risque. Le *target encoding* (remplacer chaque catégorie par la
+fréquence de sinistre moyenne observée sur le jeu d'entraînement, avec régularisation) fonctionne
+mieux qu'un one-hot encoding classique, qui explose en dimension et dilue le signal par zone.
+
+## La contrainte que le Machine Learning classique ignore
+
+Certaines variables corrélées au risque — âge, sexe, origine géographique dans certains
+contextes réglementaires — sont interdites ou encadrées par la loi selon les branches
+d'assurance et les juridictions. Une feature techniquement prédictive n'est pas automatiquement
+utilisable : la validation d'un jeu de features en assurance passe autant par la conformité
+que par la performance statistique.

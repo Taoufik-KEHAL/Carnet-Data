@@ -1,0 +1,66 @@
+---
+title: "Comment versionner ses modèles de Machine Learning avec MLflow"
+description: "Suivre les expériences, comparer les runs et gérer le cycle de vie des modèles avec MLflow, sans y passer plus de temps qu'à l'entraînement lui-même."
+pillar: "mlops"
+entryNumber: 4
+publishDate: 2026-08-27
+---
+
+"Quel notebook a produit ce modèle, avec quels hyperparamètres, sur quelle version des
+données ?" Si la réponse tient dans un nom de fichier du type `model_final_v2_bis.pkl`,
+il y a un problème. MLflow existe précisément pour éviter cette situation.
+
+## Ce que MLflow versionne réellement
+
+MLflow n'est pas un seul outil mais trois composants qu'on peut adopter séparément :
+
+- **Tracking** — enregistre les paramètres, métriques et artefacts de chaque run
+  d'entraînement, consultable dans une interface web.
+- **Model Registry** — centralise les versions d'un modèle donné et leur statut
+  (`Staging`, `Production`, `Archived`).
+- **Projects** — packages un pipeline d'entraînement pour qu'il soit reproductible sur une
+  autre machine, avec les mêmes dépendances.
+
+Pour la plupart des équipes, Tracking et Model Registry couvrent déjà 90 % du besoin.
+
+## Tracer un entraînement
+
+```python
+import mlflow
+
+mlflow.set_experiment("scoring-credit")
+
+with mlflow.start_run():
+    mlflow.log_params({"max_depth": 6, "learning_rate": 0.05})
+    model = train(X_train, y_train)
+    mlflow.log_metric("auc", evaluate(model, X_test, y_test))
+    mlflow.sklearn.log_model(model, "modele", registered_model_name="scoring-credit")
+```
+
+Chaque run est horodaté et comparable aux précédents dans l'UI MLflow — plus besoin de
+tableur parallèle pour suivre les expériences.
+
+## Faire passer un modèle en production
+
+Le Model Registry attribue une version numérique à chaque modèle enregistré et permet de
+changer son statut sans réentraîner :
+
+```python
+from mlflow import MlflowClient
+
+client = MlflowClient()
+client.transition_model_version_stage(
+    name="scoring-credit", version=7, stage="Production"
+)
+```
+
+Le code qui consomme le modèle peut alors toujours pointer vers `models:/scoring-credit/Production`
+plutôt que vers un numéro de version codé en dur — la bascule d'une version à l'autre se fait
+côté registre, sans redéploiement du code appelant.
+
+## Ce que MLflow ne résout pas
+
+MLflow versionne les modèles et les expériences, pas les données. Pour savoir quel jeu de
+données a servi à un run donné, il faut soit logger un hash des données en paramètre, soit
+coupler MLflow à un outil dédié comme DVC. Sans ça, la traçabilité reste incomplète : on sait
+quel modèle est en production, mais pas nécessairement avec quelles données il a été entraîné.
