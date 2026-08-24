@@ -1,0 +1,33 @@
+---
+// Placeholder ad slot. Swap the inner comment for your AdSense/Ezoic <ins>/<script> unit once approved.
+// Keeping ad markup in one component means enabling monetization later is a one-file change.
+interface Props {
+  label?: string;
+}
+const { label = 'Publicité' } = Astro.props;
+---
+<div class="ad-slot" role="complementary" aria-label={label}>
+  <span class="ad-slot__tag">{label}</span>
+  <!-- AdSense/Ezoic unit goes here -->
+</div>
+
+<style>
+  .ad-slot {
+    margin: 2.5em 0;
+    padding: 14px;
+    border: 1px dashed var(--paper-line);
+    border-radius: var(--radius);
+    min-height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card);
+  }
+  .ad-slot__tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+</style>

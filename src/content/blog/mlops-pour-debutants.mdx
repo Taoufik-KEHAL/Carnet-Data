@@ -1,0 +1,49 @@
+---
+title: "MLOps pour débutants : les bases du déploiement de modèles"
+description: "Ce qui change entre un notebook Jupyter qui marche et un modèle qui tourne réellement en production."
+pillar: "mlops"
+entryNumber: 1
+publishDate: 2026-08-24
+---
+
+Un modèle qui obtient un bon score sur un notebook Jupyter n'est pas un modèle en production.
+C'est la première leçon que tout data scientist apprend, généralement à ses dépens : l'écart
+entre "ça marche sur mon poste" et "ça tourne de façon fiable pour de vrais utilisateurs" est
+énorme, et c'est exactement ce que le MLOps essaie de combler.
+
+## Qu'est-ce que le MLOps, concrètement ?
+
+Le MLOps (Machine Learning Operations) applique les principes du DevOps au cycle de vie des
+modèles de Machine Learning : versionnement, tests automatisés, déploiement continu,
+monitoring. La différence avec le DevOps classique : on ne versionne pas seulement du code,
+mais aussi des données et des modèles, dont le comportement peut dériver dans le temps.
+
+## Les trois piliers d'un pipeline MLOps minimal
+
+1. **Versionnement** — du code (Git), des données (DVC, ou un simple système de hachage), et
+   des modèles (MLflow Model Registry, par exemple).
+2. **Automatisation** — un pipeline CI/CD qui entraîne, teste et déploie le modèle sans
+   intervention manuelle à chaque étape.
+3. **Monitoring** — suivre non seulement la disponibilité du service, mais aussi la qualité
+   des prédictions et la dérive des données (*data drift*) une fois en production.
+
+## Par où commencer ?
+
+Pas besoin d'une infrastructure Kubernetes complexe dès le premier projet. Un pipeline
+minimal viable ressemble souvent à ceci :
+
+```python
+# entraînement.py — versionné avec le code
+import mlflow
+
+with mlflow.start_run():
+    model = train(X_train, y_train)
+    mlflow.log_metric("f1_score", evaluate(model, X_test, y_test))
+    mlflow.sklearn.log_model(model, "modele")
+```
+
+L'objectif n'est pas la sophistication, mais la traçabilité : pouvoir répondre à la question
+"quelle version du modèle a produit cette prédiction, avec quelles données ?" à tout moment.
+
+Dans une prochaine entrée, on détaillera comment construire un pipeline CI/CD complet pour
+un projet de Data Science, étape par étape.

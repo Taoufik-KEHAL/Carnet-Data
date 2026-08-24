@@ -1,0 +1,74 @@
+---
+const nav = [
+  { href: '/', label: 'Carnet' },
+  { href: '/pilier/mlops', label: 'MLOps' },
+  { href: '/pilier/ml-fondamentaux', label: 'ML fondamentaux' },
+  { href: '/pilier/big-data-cloud', label: 'Big Data & Cloud' },
+  { href: '/pilier/risk-modeling', label: 'Risk modeling' },
+  { href: '/a-propos', label: 'À propos' },
+];
+---
+<header class="site-header">
+  <div class="site-header__inner">
+    <a href="/" class="brand">
+      <span class="brand__mark">◆</span> Carnet Data
+    </a>
+    <nav>
+      <ul>
+        {nav.map((item) => (
+          <li><a href={item.href}>{item.label}</a></li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--paper-line);
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .site-header__inner {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 18px 24px 18px calc(min(64px, 8vw) + 32px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--ink);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .brand__mark { color: var(--red); font-size: 0.8rem; }
+  nav ul {
+    list-style: none;
+    display: flex;
+    gap: 18px;
+    margin: 0;
+    padding: 0;
+    flex-wrap: wrap;
+  }
+  nav a {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink);
+    text-decoration: none;
+    letter-spacing: 0.01em;
+  }
+  nav a:hover { color: var(--red); }
+  @media (max-width: 640px) {
+    .site-header__inner { padding-left: 20px; }
+  }
+</style>

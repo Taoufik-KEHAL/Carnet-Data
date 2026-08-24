@@ -1,0 +1,34 @@
+---
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <p>
+    Carnet Data — notes de terrain sur le Machine Learning, le MLOps et la modélisation du risque.
+  </p>
+  <p class="site-footer__links">
+    <a href="/rss.xml">RSS</a>
+    <span aria-hidden="true">·</span>
+    <a href="https://linkedin.com" target="_blank" rel="noopener">LinkedIn</a>
+    <span aria-hidden="true">·</span>
+    <a href="/a-propos">À propos</a>
+  </p>
+  <p class="site-footer__copy">© {year} Carnet Data</p>
+</footer>
+
+<style>
+  .site-footer {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 32px 24px 64px calc(min(64px, 8vw) + 32px);
+    border-top: 1px solid var(--paper-line);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+  .site-footer__links { margin: 10px 0; }
+  .site-footer__links a { color: var(--teal); }
+  .site-footer__copy { margin: 0; }
+  @media (max-width: 640px) {
+    .site-footer { padding-left: 20px; }
+  }
+</style>

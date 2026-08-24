@@ -1,0 +1,64 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const pillarLabels: Record<string, string> = {
+  'mlops': 'MLOps',
+  'ml-fondamentaux': 'ML fondamentaux',
+  'big-data-cloud': 'Big Data & Cloud',
+  'risk-modeling': 'Risk modeling',
+};
+
+export async function getStaticPaths() {
+  return Object.keys({
+    'mlops': 0,
+    'ml-fondamentaux': 0,
+    'big-data-cloud': 0,
+    'risk-modeling': 0,
+  }).map((pillar) => ({ params: { pillar } }));
+}
+
+const { pillar } = Astro.params;
+const allPosts = await getCollection('blog', ({ data }) => !data.draft);
+const posts = allPosts
+  .filter((p) => p.data.pillar === pillar)
+  .sort((a, b) => b.data.entryNumber - a.data.entryNumber);
+
+const label = pillarLabels[pillar as string] ?? pillar;
+const dateFmt = (d: Date) => new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+---
+<BaseLayout title={label} description={`Articles du pilier ${label} sur Carnet Data.`}>
+  <p class="eyebrow">Pilier</p>
+  <h1>{label}</h1>
+
+  <section class="entries">
+    {posts.map((post) => (
+      <a class="entry" href={`/blog/${post.id}/`}>
+        <span class="entry__stamp">#{String(post.data.entryNumber).padStart(3, '0')}</span>
+        <div class="entry__body">
+          <p class="entry__meta">{dateFmt(post.data.publishDate)}</p>
+          <h2>{post.data.title}</h2>
+          <p>{post.data.description}</p>
+        </div>
+      </a>
+    ))}
+    {posts.length === 0 && (
+      <p class="empty">Pas encore d'entrée dans ce pilier.</p>
+    )}
+  </section>
+</BaseLayout>
+
+<style>
+  .entries { display: flex; flex-direction: column; gap: 8px; margin-top: 1.5em; }
+  .entry {
+    display: flex; gap: 18px; padding: 20px;
+    border: 1px solid var(--paper-line); border-radius: var(--radius);
+    background: var(--card); text-decoration: none; color: var(--ink);
+  }
+  .entry:hover { border-color: var(--red); }
+  .entry__stamp { font-family: var(--font-mono); font-size: 0.8rem; color: var(--red); flex-shrink: 0; padding-top: 3px; }
+  .entry__meta { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--teal); margin: 0 0 0.3em; }
+  .entry h2 { font-size: 1.2rem; margin: 0 0 0.3em; }
+  .entry p:last-child { margin: 0; color: var(--ink-soft); font-size: 0.95rem; }
+  .empty { color: var(--ink-soft); font-style: italic; }
+</style>
