@@ -1,0 +1,45 @@
+---
+title: "Détection de fraude : approche Machine Learning"
+description: "Un déséquilibre de classes extrême, avec en plus des fraudeurs qui adaptent activement leur comportement dès qu'ils sentent le modèle en place."
+pillar: "risk-modeling"
+entryNumber: 34
+publishDate: 2026-12-01
+---
+
+Les cas positifs, ici, sont extrêmement rares — souvent moins de 0,1 % des transactions — et les
+fraudeurs changent de tactique dès qu'ils identifient les signaux qui les font repérer. Les
+techniques classiques de rééquilibrage, SMOTE, repondération, restent utiles mais atteignent
+vite leurs limites à ce niveau de rareté.
+
+Une approche complémentaire consiste à traiter le problème comme de la détection d'anomalies
+plutôt que de la classification supervisée pure — modéliser à quoi ressemble un comportement
+normal, plutôt que à quoi ressemble une fraude :
+
+```python
+from sklearn.ensemble import IsolationForest
+
+detecteur = IsolationForest(contamination=0.001, random_state=42)
+detecteur.fit(X_transactions_normales)
+
+scores_anomalie = detecteur.decision_function(X_nouvelles_transactions)
+```
+
+Les features comportementales priment largement sur les features brutes. Le montant d'une
+transaction isolée est peu informatif ; l'écart par rapport au comportement habituel du client
+l'est beaucoup plus — écart entre le montant et la moyenne des 30 derniers jours, fréquence de
+transactions dans la dernière heure comparée à l'historique, changement soudain de zone
+géographique ou d'appareil.
+
+```python
+df["ecart_montant_habituel"] = (df["montant"] - df["montant_moyen_30j"]) / df["montant_std_30j"]
+```
+
+Le coût des erreurs est asymétrique : un faux négatif coûte directement de l'argent, un faux
+positif coûte de la satisfaction client et un coût opérationnel de vérification. Le seuil de
+décision doit refléter ce déséquilibre, en optimisant explicitement une fonction de coût
+métier plutôt qu'un seuil de probabilité arbitraire à 0,5.
+
+Et contrairement à un modèle de scoring de crédit, où le comportement sous-jacent évolue
+lentement, les fraudeurs changent de tactique dès qu'un pattern devient détecté et bloqué. Un
+modèle sans réentraînement fréquent et sans monitoring de dérive perd son efficacité en
+quelques semaines, pas en quelques années.

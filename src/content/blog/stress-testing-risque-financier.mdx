@@ -1,0 +1,38 @@
+---
+title: "Stress testing de modèles de risque financier"
+description: "Un modèle validé sur des données récentes et calmes peut être excellent en période normale et inadapté pile au moment où sa fiabilité compte le plus."
+pillar: "risk-modeling"
+entryNumber: 29
+publishDate: 2026-11-16
+---
+
+La validation classique — AUC, PSI, backtesting — mesure la performance d'un modèle sur des
+données déjà observées. Le stress testing va plus loin en posant une autre question : comment
+ce modèle se comporte-t-il dans des conditions qui n'ont peut-être jamais été observées, ou
+rarement ?
+
+Deux approches se complètent. Les scénarios historiques rejouent une crise passée — 2008,
+2020 — sur le portefeuille actuel : quelle aurait été la perte si les mêmes chocs se
+reproduisaient aujourd'hui. Les scénarios hypothétiques construisent des chocs plausibles mais
+jamais observés, une hausse de taux combinée à une récession sectorielle spécifique par
+exemple, souvent définis par le régulateur ou le comité des risques.
+
+```python
+scenario_stress = X_test.copy()
+scenario_stress["taux_chomage"] *= 1.5
+scenario_stress["valeur_bien"] *= 0.7
+
+pertes_stress = modele.predict(scenario_stress)
+print(f"Perte moyenne en scénario de stress : {pertes_stress.mean():.2%}")
+```
+
+Un modèle de scoring de crédit entraîné exclusivement sur des données de croissance économique
+n'a jamais "vu" de comportement de défaut en récession — son extrapolation dans ce régime est
+structurellement peu fiable, quelle que soit sa performance apparente en conditions normales.
+Le stress testing révèle cette fragilité avant qu'elle ne se manifeste réellement, pas après.
+
+Pour les institutions financières, ce n'est d'ailleurs pas optionnel : les tests de résistance
+de la BCE pour les banques européennes, les exigences Solvabilité II pour les assureurs,
+l'imposent. Mais au-delà de la conformité, c'est surtout un exercice qui force à expliciter les
+hypothèses implicites d'un modèle — souvent la partie la plus utile, indépendamment du chiffre
+final obtenu.

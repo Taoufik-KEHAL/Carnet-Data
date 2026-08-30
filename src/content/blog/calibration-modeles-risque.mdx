@@ -1,0 +1,48 @@
+---
+title: "Calibration de modèles de risque : pourquoi une bonne AUC ne suffit pas"
+description: "Un modèle peut parfaitement classer sans que ses probabilités prédites soient fiables — une distinction cruciale dès qu'on parle de primes ou de provisions."
+pillar: "risk-modeling"
+entryNumber: 38
+publishDate: 2026-12-13
+---
+
+L'AUC mesure la capacité d'un modèle à ordonner correctement les observations par risque
+croissant. La calibration mesure autre chose : est-ce qu'une probabilité prédite de 20 %
+correspond effectivement à environ 20 % d'événements observés parmi les cas où le modèle a
+prédit ce niveau de risque. Un modèle peut avoir une AUC excellente et être mal calibré — le
+classement est bon, l'échelle de probabilité ne l'est pas.
+
+```python
+from sklearn.calibration import calibration_curve
+import matplotlib.pyplot as plt
+
+prob_predite, prob_observee = calibration_curve(y_test, probas_predites, n_bins=10)
+
+plt.plot(prob_predite, prob_observee, marker="o")
+plt.plot([0, 1], [0, 1], linestyle="--")
+plt.xlabel("Probabilité prédite")
+plt.ylabel("Fréquence observée")
+```
+
+Un modèle bien calibré suit la diagonale ; un écart systématique au-dessus ou en dessous
+signale une sur- ou sous-estimation du risque à ce niveau de probabilité.
+
+Ça compte particulièrement en risque parce qu'une prime d'assurance, une provision, ou un
+seuil d'approbation de crédit se calculent directement à partir de la probabilité prédite, pas
+seulement de son rang. Un modèle qui classe bien mais surestime systématiquement le risque à
+10 % — en réalité observé à 6 % — fait payer une prime trop élevée ou provisionne trop, même
+s'il identifie correctement les profils les plus risqués.
+
+Quand un modèle discrimine bien mais reste mal calibré, pas besoin de tout réentraîner : des
+techniques de recalibration comme le Platt scaling ou la régression isotonique ajustent les
+probabilités de sortie sans toucher au modèle sous-jacent.
+
+```python
+from sklearn.calibration import CalibratedClassifierCV
+
+modele_calibre = CalibratedClassifierCV(modele_existant, method="isotonic", cv=5)
+modele_calibre.fit(X_train, y_train)
+```
+
+C'est souvent la correction la plus rapide et la moins risquée, quand le seul problème
+identifié est un défaut de calibration.

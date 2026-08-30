@@ -1,0 +1,43 @@
+---
+title: "Choisir le bon graphique : principes de dataviz appliqués"
+description: "Le camembert par défaut, la courbe par défaut : le choix d'un graphique se fait trop souvent par habitude plutôt qu'en fonction de la comparaison qu'il doit permettre."
+pillar: "data-analysis"
+entryNumber: 45
+publishDate: 2027-01-03
+---
+
+Le point de départ n'est pas le type de graphique mais le type de comparaison à faire. Comparer
+des catégories appelle des barres, triées par valeur plutôt que par ordre alphabétique quand
+l'ordre n'a pas de sens intrinsèque. Montrer une évolution dans le temps appelle une courbe pour
+une tendance continue, des barres si chaque période est une observation discrète indépendante.
+Montrer la composition d'un tout appelle des barres empilées ou un treemap. Et une relation
+entre deux variables numériques appelle un nuage de points, avec une droite de régression si la
+relation doit être mise en évidence.
+
+Le camembert mérite une mention à part : il ne reste lisible qu'avec très peu de catégories,
+trois ou quatre maximum.
+
+```
+Mauvais usage  : 8 catégories dans un camembert, angles impossibles à comparer précisément
+Bon usage      : 3 catégories bien distinctes (ex. répartition en 3 segments majeurs)
+Souvent mieux  : un graphique en barres, où la comparaison de longueurs est plus précise
+                 que la comparaison d'angles, quel que soit le nombre de catégories
+```
+
+L'œil humain compare des longueurs bien plus précisément que des angles ou des surfaces — c'est
+la raison structurelle pour laquelle les barres surpassent presque toujours le camembert
+au-delà de quelques catégories.
+
+Un piège fréquent, volontaire ou non : tronquer l'axe des ordonnées pour exagérer une
+différence, commencer à 80 plutôt qu'à 0 sur un graphique en barres. Ça déforme la perception de
+l'ampleur réelle de la variation, et reste l'une des formes les plus courantes de graphique
+trompeur.
+
+La couleur devrait porter du sens plutôt que décorer : une couleur par catégorie constante d'un
+graphique à l'autre, une échelle cohérente pour une variable continue. Réserver une couleur
+vive à la seule catégorie pertinente, et des tons neutres au reste, guide l'attention du
+lecteur vers ce qui compte réellement.
+
+Le test le plus fiable reste pratique : montrer le graphique sans commentaire à quelqu'un
+d'extérieur à l'analyse. S'il ne comprend pas le message principal en quelques secondes, c'est
+le graphique — pas le lecteur — qui a probablement besoin d'être retravaillé.

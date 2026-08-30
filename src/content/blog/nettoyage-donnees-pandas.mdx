@@ -1,0 +1,47 @@
+---
+title: "Nettoyage de données avec pandas : méthodologie et pièges"
+description: "Le nettoyage prend souvent plus de temps que la modélisation, mais reste rarement traité avec la même rigueur. Une méthode évite de redécouvrir les mêmes problèmes."
+pillar: "data-analysis"
+entryNumber: 21
+publishDate: 2026-10-23
+---
+
+Avant de corriger quoi que ce soit, un diagnostic complet évite de traiter des symptômes sans
+en comprendre la cause :
+
+```python
+df.info()
+df.isnull().sum().sort_values(ascending=False)
+df.describe(include="all")
+df.duplicated().sum()
+```
+
+Une colonne à 40 % de valeurs manquantes n'appelle pas la même réponse qu'une colonne à 2 % —
+la première mérite une vraie investigation sur son origine, la seconde peut souvent se traiter
+simplement.
+
+Les problèmes reviennent presque toujours dans les mêmes catégories. Les valeurs manquantes,
+d'abord : suppression, imputation, ou conservation d'un indicateur "valeur manquante" comme
+information en soi selon le cas. Les doublons ensuite, à vérifier plutôt qu'à supprimer
+aveuglément — deux transactions au même montant, le même jour, par deux clients différents ne
+sont pas des doublons. Les incohérences de type et de format, dates dans plusieurs formats,
+unités mélangées, casse incohérente pour une même catégorie. Et les valeurs aberrantes, qui
+peuvent être une erreur de saisie ou une observation réelle rare — les traiter
+systématiquement comme des erreurs fait perdre du signal légitime.
+
+```python
+df["date"] = pd.to_datetime(df["date"], errors="coerce")
+df["categorie"] = df["categorie"].str.strip().str.lower()
+df = df.drop_duplicates(subset=["client_id", "date_transaction"])
+```
+
+Le piège le plus fréquent que j'observe : remplacer des valeurs manquantes par une moyenne sans
+le documenter, ni le signaler dans une colonne dédiée, ce qui rend le nettoyage invisible pour
+la suite de l'analyse. Garder une trace explicite de chaque transformation, via un script
+versionné plutôt qu'un enchaînement de manipulations manuelles dans un notebook non
+reproductible, évite ce problème.
+
+De nouvelles données arrivent avec de nouveaux problèmes — le nettoyage n'est jamais terminé
+une fois pour toutes. Écrire le pipeline comme une fonction réutilisable et testée, pas comme
+une série de commandes exécutées une fois sur un fichier donné, évite de repartir de zéro à
+chaque nouveau lot.

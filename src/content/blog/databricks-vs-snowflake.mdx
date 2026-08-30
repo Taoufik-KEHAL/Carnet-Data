@@ -1,0 +1,33 @@
+---
+title: "Databricks vs Snowflake : quand choisir quoi"
+description: "Deux plateformes de plus en plus présentées comme interchangeables, mais dont l'origine continue de marquer les points forts respectifs."
+pillar: "big-data-cloud"
+entryNumber: 37
+publishDate: 2026-12-10
+---
+
+Snowflake est né comme un data warehouse cloud, pensé pour l'analytique SQL — sa séparation
+entre stockage et calcul, et sa simplicité d'administration, en font une référence pour le
+reporting et le BI à grande échelle. Databricks est né autour de Spark, pensé pour le
+traitement de données à grande échelle et le Machine Learning — MLflow y est né, et son
+environnement de notebooks intégré reste plus mature côté data science.
+
+```
+Snowflake : excellent pour du SQL analytique pur, BI, tableaux de bord
+Databricks : excellent pour du ML, de l'ingénierie de données complexe, du batch/streaming
+```
+
+Une équipe principalement analytique — reporting, dashboards, requêtes SQL ad hoc — tire plus
+de valeur immédiate de Snowflake. Une équipe qui entraîne des modèles, orchestre des pipelines
+complexes et travaille en notebooks trouvera Databricks plus naturel.
+
+La frontière se réduit chaque année : Snowflake a ajouté Snowpark pour exécuter du Python et
+du Machine Learning directement dans la plateforme, Databricks a ajouté Databricks SQL pour
+rivaliser sur l'analytique pur. Le choix devient de moins en moins binaire.
+
+Deux facteurs pèsent désormais plus que les fonctionnalités elles-mêmes. L'écosystème déjà en
+place — l'un ou l'autre s'intègre mieux selon le cloud principal utilisé, Databricks étant
+multi-cloud par nature, Snowflake aussi mais avec des nuances de performance selon le
+fournisseur. Et le profil de l'équipe : des analystes SQL-first iront plus vite sur Snowflake,
+une équipe data engineering/ML ira plus vite sur Databricks, indépendamment du marketing des
+deux plateformes.

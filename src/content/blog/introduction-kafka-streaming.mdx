@@ -1,0 +1,50 @@
+---
+title: "Introduction à Kafka pour le traitement de données en streaming"
+description: "Un pipeline batch traite par lots à intervalle régulier. Kafka répond à un besoin différent : réagir dès qu'un événement se produit."
+pillar: "big-data-cloud"
+entryNumber: 24
+publishDate: 2026-11-01
+---
+
+Kafka organise les données en topics — des flux d'événements nommés — auxquels des producteurs
+écrivent et que des consommateurs lisent, indépendamment les uns des autres.
+
+```python
+from kafka import KafkaProducer, KafkaConsumer
+import json
+
+producteur = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+    value_serializer=lambda v: json.dumps(v).encode(),
+)
+producteur.send("transactions", {"client_id": 421, "montant": 89.90})
+
+consommateur = KafkaConsumer(
+    "transactions",
+    bootstrap_servers="localhost:9092",
+    value_deserializer=lambda v: json.loads(v.decode()),
+)
+for message in consommateur:
+    traiter_transaction(message.value)
+```
+
+Plusieurs consommateurs indépendants — détection de fraude en temps réel, mise à jour d'un
+tableau de bord, alimentation d'un data lake — peuvent lire le même topic sans se gêner
+mutuellement.
+
+Ce qui distingue Kafka d'une file d'attente classique comme RabbitMQ : les messages sont
+conservés pendant une durée configurable, même après leur lecture. Un nouveau consommateur peut
+rejouer l'historique complet d'un topic, précieux pour déboguer un incident ou reconstruire un
+état après une panne.
+
+Trois cas d'usage reviennent souvent côté data science : le scoring en temps réel, où un modèle
+de détection de fraude consomme un flux de transactions et produit un score par événement sans
+attendre un batch ; l'alimentation d'un feature store en continu à partir d'événements
+applicatifs ; et le monitoring de dérive en continu, en comparant la distribution des features
+en temps réel à une référence plutôt qu'en analyse différée.
+
+Kafka ajoute une brique d'infrastructure supplémentaire — cluster, partitionnement, gestion des
+offsets — qui ne se justifie que si le besoin métier est réellement temps réel. Pour la
+majorité des cas d'usage en Data Science, un pipeline batch quotidien reste plus simple à
+opérer. Kafka devient pertinent quand la latence de décision se compte en secondes, pas en
+heures.

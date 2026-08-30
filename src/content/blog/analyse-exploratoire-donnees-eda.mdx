@@ -1,0 +1,47 @@
+---
+title: "Analyse exploratoire de données (EDA) : la méthode"
+description: "Une EDA réduite à quelques histogrammes et un describe() n'apprend pas grand-chose. Répondre à trois questions dans l'ordre change tout."
+pillar: "data-analysis"
+entryNumber: 26
+publishDate: 2026-11-07
+---
+
+Sauter directement aux relations entre variables sans avoir d'abord vérifié la fiabilité des
+données produit des analyses qui semblent solides mais reposent sur un terrain mal compris.
+Mieux vaut avancer dans l'ordre.
+
+D'abord, qu'est-ce que je regarde : dimensions du jeu de données, types de variables, période
+couverte, granularité — une ligne, c'est un client, une transaction, un jour ? Ensuite, la
+donnée est-elle fiable : valeurs manquantes, doublons, valeurs aberrantes, cohérence entre
+colonnes liées, une date de fin avant une date de début par exemple. Enfin seulement, quelles
+relations existent entre les variables : corrélations, distributions par segment, évolution
+dans le temps.
+
+```python
+# 1. Vue d'ensemble
+df.shape, df.dtypes, df.head()
+
+# 2. Fiabilité
+df.isnull().mean().sort_values(ascending=False)
+df.duplicated().sum()
+
+# 3. Distributions et relations
+df["montant"].hist(bins=50)
+df.groupby("segment")["montant"].describe()
+df.corr(numeric_only=True)
+```
+
+Chaque étape devrait produire une observation écrite, pas seulement un graphique regardé puis
+oublié. "30 % de valeurs manquantes sur `revenu`, concentrées sur les nouveaux clients" est
+exploitable ; un histogramme seul ne l'est pas.
+
+Une matrice de corrélation identifie des relations linéaires entre variables prises deux à
+deux, mais ne dit rien sur la causalité, ni sur les relations non linéaires, ni sur celles qui
+n'apparaissent qu'en conditionnant sur une troisième variable — le paradoxe de Simpson en est
+l'exemple classique. L'EDA sert à formuler des hypothèses à tester plus rigoureusement ensuite,
+pas à conclure directement dessus.
+
+Une EDA qui vit uniquement dans un notebook exécuté une fois perd sa valeur dès que les données
+sont mises à jour. Garder les observations clés dans un document séparé, ou dans des cellules
+Markdown structurées du notebook, permet de vérifier plus tard si les hypothèses tiennent
+toujours sur de nouvelles données.

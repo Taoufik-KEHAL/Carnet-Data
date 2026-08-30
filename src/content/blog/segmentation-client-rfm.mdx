@@ -1,0 +1,48 @@
+---
+title: "Segmentation client avec RFM"
+description: "Trois colonnes calculables directement en SQL, sans Machine Learning, et une méthode qui reste étonnamment efficace pour prioriser l'action commerciale."
+pillar: "data-analysis"
+entryNumber: 42
+publishDate: 2026-12-25
+---
+
+Avant d'entraîner un clustering sophistiqué pour segmenter une base client, la méthode RFM —
+Récence, Fréquence, Montant — mérite d'être essayée en premier. Récence : depuis combien de
+temps le client n'a pas acheté. Fréquence : combien de fois il a acheté sur une période donnée.
+Montant : combien il a dépensé au total sur cette période.
+
+```sql
+SELECT
+    client_id,
+    DATE_DIFF(CURRENT_DATE, MAX(date_achat), DAY) AS recence,
+    COUNT(*) AS frequence,
+    SUM(montant) AS montant_total
+FROM transactions
+GROUP BY client_id;
+```
+
+Chaque dimension se découpe ensuite en quantiles, souvent cinq groupes, donnant un score de 1 à
+5 :
+
+```python
+df["score_r"] = pd.qcut(df["recence"], 5, labels=[5, 4, 3, 2, 1])  # récent = score élevé
+df["score_f"] = pd.qcut(df["frequence"].rank(method="first"), 5, labels=[1, 2, 3, 4, 5])
+df["score_m"] = pd.qcut(df["montant_total"], 5, labels=[1, 2, 3, 4, 5])
+
+df["segment_rfm"] = df["score_r"].astype(str) + df["score_f"].astype(str) + df["score_m"].astype(str)
+```
+
+Un client au score "555" est récent, fréquent et dépense beaucoup — à fidéliser en priorité. Un
+client "155" a beaucoup dépensé par le passé mais n'a pas acheté récemment — un candidat pour
+une relance ciblée.
+
+Cette méthode reste pertinente précisément parce qu'elle ne demande ni modèle entraîné, ni
+infrastructure ML, juste une requête SQL et un découpage en quantiles. Pour des actions
+marketing directes — campagnes de relance, programmes de fidélité — elle offre une
+segmentation actionnable immédiatement, compréhensible par des équipes non techniques, sans
+les coûts de maintenance d'un modèle.
+
+Elle a ses limites : RFM ne capture pas le type de produits achetés, le canal d'achat, ou des
+comportements plus subtils qu'un clustering pourrait révéler. Elle sert bien de point de départ
+rapide et de référence de comparaison — un clustering plus sophistiqué doit démontrer un gain
+d'action réel avant de justifier sa complexité supplémentaire.

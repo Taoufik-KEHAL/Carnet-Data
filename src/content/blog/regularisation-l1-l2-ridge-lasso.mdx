@@ -1,0 +1,39 @@
+---
+title: "Régularisation L1 vs L2 : Ridge et Lasso expliqués"
+description: "Mathématiquement proches, Ridge et Lasso ont un effet très différent sur les coefficients d'un modèle linéaire."
+pillar: "ml-fondamentaux"
+entryNumber: 18
+publishDate: 2026-10-14
+---
+
+Les deux ajoutent un terme de pénalité à la fonction de coût pour décourager des coefficients
+trop grands. Ridge (L2) pénalise la somme des carrés des coefficients, Lasso (L1) pénalise la
+somme de leurs valeurs absolues. Dans les deux cas, un paramètre `alpha` contrôle l'intensité
+de la pénalité.
+
+La différence qui compte en pratique se voit sur les coefficients eux-mêmes. Ridge réduit tous
+les coefficients proportionnellement, sans jamais les annuler complètement. Lasso, à cause de
+la géométrie de sa pénalité, peut ramener certains coefficients exactement à zéro — ce qui
+revient à faire de la sélection de variables automatiquement.
+
+```python
+from sklearn.linear_model import Ridge, Lasso
+
+ridge = Ridge(alpha=1.0).fit(X_train, y_train)
+lasso = Lasso(alpha=0.1).fit(X_train, y_train)
+
+print("Coefficients Ridge:", ridge.coef_)
+print("Coefficients Lasso:", lasso.coef_)  # certains seront exactement à 0.0
+```
+
+Ridge convient quand on pense que la plupart des variables ont un effet réel, même faible, et
+qu'on veut réduire leur influence sans les éliminer. Lasso convient quand on soupçonne que
+seules quelques variables sont vraiment pertinentes parmi beaucoup de candidates — utile pour
+l'interprétabilité et pour réduire la dimension du modèle. Elastic Net combine les deux quand
+on veut à la fois une sélection de variables et un lissage sur celles qui restent.
+
+Le choix d'`alpha` mérite qu'on s'y attarde : trop élevé, il sous-ajuste le modèle ; trop
+faible, il ne corrige rien à l'overfitting. Autant le choisir par validation croisée
+(`RidgeCV`, `LassoCV`) qu'à l'œil. Et toujours standardiser les variables avant d'appliquer une
+régularisation — sinon la pénalité affecte différemment des variables qui n'ont simplement pas
+la même échelle, indépendamment de leur pertinence réelle.

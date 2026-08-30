@@ -1,0 +1,38 @@
+---
+title: "Data Lake vs Data Warehouse : quelle différence, quel usage"
+description: "Deux architectures qu'on confond facilement à l'oral, alors qu'elles coexistent souvent dans la même infrastructure pour des besoins différents."
+pillar: "big-data-cloud"
+entryNumber: 19
+publishDate: 2026-10-17
+---
+
+Un data warehouse — Redshift, BigQuery, Snowflake — stocke des données déjà structurées et
+transformées, organisées en tables avec un schéma défini à l'avance. C'est le socle classique
+du reporting et des tableaux de bord, optimisé pour des requêtes SQL rapides sur de gros
+volumes.
+
+Un data lake — S3, Azure Data Lake, GCS — stocke des données brutes dans leur format d'origine,
+CSV, JSON, logs, images, Parquet, sans imposer de schéma à l'écriture. Le schéma s'applique à
+la lecture, ce qui permet de stocker des données variées sans décision de modélisation
+préalable.
+
+```
+Data Warehouse : source → transformation (ETL) → tables structurées → requêtes SQL
+Data Lake      : source → stockage brut → transformation à la demande → requêtes / ML
+```
+
+Pour un data scientist, ça change concrètement l'usage : le warehouse convient bien à des
+questions métier récurrentes et bien définies, chiffre d'affaires mensuel, taux de conversion.
+Le data lake convient mieux à l'exploration, à l'entraînement de modèles sur des données
+brutes, et au stockage de types de données que le warehouse gère mal nativement.
+
+Des plateformes comme Databricks avec Delta Lake, ou l'architecture Apache Iceberg, tentent de
+combiner les deux : un stockage type data lake avec des garanties de schéma et de transactions
+proches d'un warehouse. L'intérêt pratique, c'est d'éviter de dupliquer les données entre un
+lac pour le Machine Learning et un warehouse pour le reporting.
+
+Le vrai critère de choix n'est pas "lequel est meilleur", c'est "à quel usage sert cette donnée
+en premier". Des données déjà consolidées pour du reporting récurrent appartiennent
+naturellement à un warehouse. Des données brutes destinées à plusieurs usages encore mal
+définis appartiennent à un lake, quitte à les transformer vers un warehouse une fois leur usage
+stabilisé.

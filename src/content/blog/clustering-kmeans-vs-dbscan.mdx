@@ -1,0 +1,46 @@
+---
+title: "Clustering : k-means vs DBSCAN, comment choisir"
+description: "Aucun algorithme de clustering n'est universellement bon — chacun impose des hypothèses implicites sur la forme des groupes recherchés."
+pillar: "ml-fondamentaux"
+entryNumber: 36
+publishDate: 2026-12-07
+---
+
+k-means cherche *k* centres et assigne chaque point au centre le plus proche, en supposant
+implicitement que les clusters sont de forme à peu près circulaire et de taille similaire.
+
+```python
+from sklearn.cluster import KMeans
+
+modele = KMeans(n_clusters=4, random_state=42, n_init=10)
+labels = modele.fit_predict(X)
+```
+
+Le nombre de clusters doit être fixé à l'avance — la méthode du coude ou le score de silhouette
+aident à le déterminer, mais restent des heuristiques, pas des réponses exactes.
+
+DBSCAN prend l'approche inverse : il regroupe les points selon leur densité locale, sans
+supposer de forme particulière et sans exiger de fixer le nombre de clusters à l'avance.
+
+```python
+from sklearn.cluster import DBSCAN
+
+modele = DBSCAN(eps=0.5, min_samples=5)
+labels = modele.fit_predict(X)
+```
+
+Un avantage que k-means n'a pas : DBSCAN identifie explicitement les points isolés comme du
+bruit, label `-1`, plutôt que de forcer chaque point dans un cluster — utile en détection
+d'anomalies, où les points isolés sont souvent le signal recherché plutôt qu'une erreur à
+corriger.
+
+Pour trancher : des clusters attendus de forme régulière, de taille comparable, avec un nombre
+connu à l'avance, orientent vers k-means, plus rapide et plus simple à interpréter. Des
+clusters de forme irrégulière, de densité variable, ou la présence de bruit à isoler, orientent
+vers DBSCAN, au prix d'un réglage plus délicat de `eps` et `min_samples`.
+
+Une étape qu'on oublie souvent avec les deux : normaliser les variables. Les deux algorithmes
+reposent sur une notion de distance entre points. Sans normalisation, une variable à grande
+échelle — un revenu en euros — domine complètement une variable à petite échelle — un âge en
+années — dans le calcul de distance, indépendamment de sa pertinence réelle pour le clustering
+recherché.

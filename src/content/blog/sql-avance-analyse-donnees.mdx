@@ -1,0 +1,59 @@
+---
+title: "SQL avancé pour l'analyse de données : fenêtrage et CTE"
+description: "Beaucoup d'analystes basculent vers pandas dès qu'un calcul dépasse un GROUP BY, alors que SQL couvre largement plus de cas qu'on ne le pense."
+pillar: "data-analysis"
+entryNumber: 17
+publishDate: 2026-10-11
+---
+
+Une CTE transforme une requête imbriquée illisible en étapes nommées qu'on peut lire et
+déboguer séparément :
+
+```sql
+WITH ventes_mensuelles AS (
+    SELECT
+        client_id,
+        DATE_TRUNC('month', date_vente) AS mois,
+        SUM(montant) AS total_mois
+    FROM ventes
+    GROUP BY client_id, DATE_TRUNC('month', date_vente)
+),
+clients_actifs AS (
+    SELECT client_id
+    FROM ventes_mensuelles
+    GROUP BY client_id
+    HAVING COUNT(DISTINCT mois) >= 3
+)
+SELECT vm.*
+FROM ventes_mensuelles vm
+JOIN clients_actifs ca ON vm.client_id = ca.client_id;
+```
+
+On peut exécuter `ventes_mensuelles` seule pour vérifier son résultat avant de l'utiliser dans
+la suite — c'est ce qui rend une requête complexe maintenable à plusieurs mois d'écart.
+
+Les fonctions window sont le vrai gain de productivité par rapport à `GROUP BY` : elles
+calculent une valeur par ligne en tenant compte d'un groupe de lignes liées, sans réduire le
+nombre de lignes du résultat.
+
+```sql
+SELECT
+    client_id,
+    mois,
+    total_mois,
+    total_mois - LAG(total_mois) OVER (
+        PARTITION BY client_id ORDER BY mois
+    ) AS variation_mensuelle,
+    RANK() OVER (PARTITION BY mois ORDER BY total_mois DESC) AS rang_du_mois
+FROM ventes_mensuelles;
+```
+
+`LAG` récupère la valeur de la ligne précédente pour calculer une variation, `RANK` classe les
+clients au sein de chaque mois. Les deux demanderaient un self-join lent et fragile sans
+fonctions window.
+
+Ceci dit, SQL a ses limites. Pour des transformations itératives complexes — simulation,
+modèles statistiques avancés — ou quand le résultat doit alimenter directement un modèle en
+Python, pandas reste plus pratique. Mon réflexe : pousser le maximum de filtrage et
+d'agrégation dans la requête SQL, et ne réserver pandas qu'à ce qui vient vraiment après
+l'extraction.

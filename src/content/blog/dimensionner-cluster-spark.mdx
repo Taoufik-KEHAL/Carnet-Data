@@ -1,0 +1,43 @@
+---
+title: "Dimensionner un cluster Spark : bonnes pratiques"
+description: "\"Prenons de grosses machines pour être sûr\" coûte cher sans garantir de meilleures performances. Quelques repères concrets évitent les deux excès classiques."
+pillar: "big-data-cloud"
+entryNumber: 33
+publishDate: 2026-11-28
+---
+
+Avant même de parler du nombre de machines, le nombre de partitions des données conditionne
+tout le reste. Trop peu de partitions sous-utilise les cœurs disponibles ; trop de petites
+partitions ajoute une surcharge de coordination.
+
+```python
+# Règle de départ courante : 2 à 4 partitions par cœur disponible
+nb_coeurs_total = nb_executeurs * coeurs_par_executeur
+df = df.repartition(nb_coeurs_total * 3)
+```
+
+Une partition trop volumineuse, plusieurs gigaoctets, risque de saturer la mémoire d'un seul
+exécuteur ; une partition de quelques kilooctets multiplie inutilement le nombre de tâches.
+
+Côté exécuteurs, mieux vaut plusieurs machines de taille moyenne qu'un petit nombre de très
+gros exécuteurs :
+
+```
+spark.executor.memory       4g
+spark.executor.cores        4
+spark.executor.instances    10
+```
+
+Un exécuteur avec trop de cœurs, au-delà de 5, souffre généralement de contention sur les
+accès disque et réseau partagés.
+
+Le vrai piège, celui qui fait ramper un cluster pourtant bien dimensionné sur le papier, c'est
+le skew de données : un `groupBy` sur une clé où une valeur représente 80 % des lignes. Une
+seule partition surchargée bloque tout le job, pendant que les autres exécuteurs restent
+inactifs. Ajouter des machines ne résout rien ici — il faut repenser la clé de partitionnement,
+via un salage de clé ou une agrégation en deux étapes.
+
+L'interface Spark UI, onglet Stages, montre directement les tâches les plus lentes et le
+déséquilibre entre exécuteurs. Ajuster le dimensionnement sans l'avoir regardée revient à
+deviner : la plupart des gains de performance viennent de la correction d'un déséquilibre
+visible dans ces métriques, pas d'une augmentation généralisée des ressources.

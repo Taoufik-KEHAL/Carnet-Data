@@ -1,0 +1,44 @@
+---
+title: "Optimiser les coûts cloud d'un pipeline de données"
+description: "Une facture cloud qui grimpe sans hausse proportionnelle du volume de données est presque toujours corrigible sans changer d'architecture."
+pillar: "big-data-cloud"
+entryNumber: 41
+publishDate: 2026-12-22
+---
+
+Côté stockage, passer de CSV à Parquet réduit à la fois l'espace occupé et le coût de lecture,
+moins de données scannées pour une requête analytique typique. Au-delà du format, une politique
+de cycle de vie sur le stockage objet réduit le coût sans effort récurrent :
+
+```
+Données de moins de 30 jours   → stockage standard (accès fréquent)
+Données de 30 à 90 jours       → stockage à accès peu fréquent
+Données de plus de 90 jours    → archive (accès rare, coût minimal)
+```
+
+La plupart des fournisseurs — S3, GCS, Azure Blob — automatisent cette transition via des
+règles de cycle de vie configurées une seule fois.
+
+Côté calcul, un cluster Spark ou une instance qui tourne en continu pour des jobs exécutés deux
+fois par jour gaspille la majorité du budget. Les instances spot, jusqu'à 70-90 % moins chères
+avec un risque d'interruption, conviennent bien aux jobs batch tolérants aux reprises, et
+l'auto-scaling évite de dimensionner en permanence pour la charge de pointe.
+
+Sur un data warehouse facturé au volume scanné, BigQuery par exemple, une requête mal écrite
+coûte cher :
+
+```sql
+-- Coûteux : scanne toutes les colonnes
+SELECT * FROM ventes WHERE date > '2026-01-01';
+
+-- Optimisé : ne scanne que les colonnes nécessaires, filtre sur une colonne partitionnée
+SELECT montant, client_id FROM ventes WHERE date_partition > '2026-01-01';
+```
+
+Le partitionnement des tables par date, combiné à des requêtes qui filtrent explicitement sur
+cette partition, réduit le volume scanné de façon souvent spectaculaire.
+
+Avant d'optimiser à l'aveugle, mieux vaut regarder où va réellement l'argent — la plupart des
+fournisseurs proposent des outils natifs de suivi des coûts, Cost Explorer sur AWS par exemple.
+Optimiser un service qui représente 2 % de la facture pendant qu'un autre en représente 60 %
+est un mauvais usage du temps.

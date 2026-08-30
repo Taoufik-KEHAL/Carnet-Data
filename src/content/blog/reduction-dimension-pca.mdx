@@ -1,0 +1,47 @@
+---
+title: "Réduction de dimension : PCA expliqué simplement"
+description: "Avec des dizaines de variables corrélées entre elles, la PCA sépare l'information réellement nouvelle du bruit redondant."
+pillar: "ml-fondamentaux"
+entryNumber: 40
+publishDate: 2026-12-19
+---
+
+Avec des dizaines ou des centaines de variables, visualiser les données ou entraîner certains
+modèles devient difficile — pas seulement techniquement, mais parce que beaucoup de ces
+variables sont corrélées entre elles et n'apportent pas d'information réellement nouvelle.
+
+La PCA cherche de nouvelles variables, les composantes principales, qui sont des combinaisons
+linéaires des variables d'origine, construites pour capturer un maximum de variance avec un
+minimum de composantes. La première composante capture la direction de plus grande variance
+dans les données, la deuxième la direction suivante, orthogonale à la première, et ainsi de
+suite.
+
+```python
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+
+X_standardise = StandardScaler().fit_transform(X)
+
+pca = PCA(n_components=0.95)  # conserve 95% de la variance totale
+X_reduit = pca.fit_transform(X_standardise)
+
+print(f"Nombre de composantes retenues : {pca.n_components_}")
+print(f"Variance expliquée par composante : {pca.explained_variance_ratio_}")
+```
+
+Passer de 50 variables à 8 composantes qui capturent 95 % de la variance simplifie
+considérablement la suite du traitement, sans perdre l'essentiel de l'information.
+
+Ce qu'on perd en échange : l'interprétabilité directe. Une composante principale est une
+combinaison de plusieurs variables d'origine pondérées différemment, elle n'a pas de sens
+métier direct comme "revenu" ou "âge" — c'est le principal compromis de la PCA.
+
+Trois usages reviennent souvent : la visualisation, en réduisant à 2 ou 3 composantes pour
+représenter des données à haute dimension sur un graphique ; la réduction du bruit, les
+dernières composantes correspondant souvent davantage à du bruit qu'à du signal utile ; et
+l'accélération de l'entraînement, moins de dimensions signifiant un entraînement plus rapide
+pour des modèles sensibles à la dimensionnalité.
+
+Un prérequis qu'on oublie souvent : standardiser les variables avant la PCA. Sans ça, une
+variable à grande échelle domine artificiellement la variance totale et fausse les composantes
+obtenues, indépendamment de sa pertinence réelle.

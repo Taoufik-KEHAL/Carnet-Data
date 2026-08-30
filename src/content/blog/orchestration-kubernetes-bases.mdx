@@ -1,0 +1,50 @@
+---
+title: "Orchestration de modèles avec Kubernetes : les bases"
+description: "Pas besoin de devenir expert DevOps pour dialoguer utilement avec une équipe infra — quelques notions de Kubernetes suffisent."
+pillar: "mlops"
+entryNumber: 23
+publishDate: 2026-10-29
+---
+
+Kubernetes arrive généralement une fois que Docker et FastAPI ne suffisent plus : trafic élevé,
+besoin de scaling automatique, plusieurs services à coordonner. Voici les briques qu'il vaut la
+peine de comprendre, même sans écrire soi-même les manifestes de déploiement.
+
+Un pod est la plus petite unité déployable, généralement un conteneur — l'équivalent d'une
+instance en cours d'exécution de l'API de prédiction. Un deployment décrit combien de copies
+(*replicas*) d'un pod doivent tourner et gère leur remplacement en cas de panne ou de mise à
+jour. Un service expose un ensemble de pods sous une adresse réseau stable, indépendamment des
+pods individuels qui peuvent être recréés à tout moment. Et un HorizontalPodAutoscaler ajuste
+automatiquement le nombre de replicas selon une métrique — charge CPU, nombre de requêtes.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scoring-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app: scoring-api }
+  template:
+    metadata:
+      labels: { app: scoring-api }
+    spec:
+      containers:
+        - name: scoring-api
+          image: registre/scoring-api:v12
+          resources:
+            requests: { memory: "512Mi", cpu: "250m" }
+            limits: { memory: "1Gi", cpu: "500m" }
+```
+
+Trois replicas veulent dire que le service reste disponible même si un pod plante ou est en
+cours de mise à jour, Kubernetes redirigeant le trafic vers les pods sains. Les limites de
+ressources évitent qu'un modèle gourmand en mémoire — fréquent en deep learning — ne fasse
+tomber d'autres services sur la même machine.
+
+Configurer correctement les probes de santé, gérer les secrets, dimensionner un cluster de
+façon rentable : ça reste un vrai métier, et un data scientist n'a pas besoin de le maîtriser.
+Mais connaître ce vocabulaire évite des malentendus classiques, comme confondre "le service
+répond" (readiness) avec "le modèle a fini de charger" — souvent bien plus lent au démarrage
+que le reste du conteneur.

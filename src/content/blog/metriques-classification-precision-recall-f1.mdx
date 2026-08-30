@@ -1,0 +1,60 @@
+---
+title: "Métriques de classification : precision, recall, F1 — comment choisir"
+description: "Choisir une métrique sans réfléchir au coût métier des erreurs revient à optimiser un modèle pour un objectif qui n'est pas le bon."
+pillar: "ml-fondamentaux"
+entryNumber: 43
+publishDate: 2026-12-28
+---
+
+Tout part de la matrice de confusion :
+
+```
+                  Prédit positif   Prédit négatif
+Réel positif      Vrai positif      Faux négatif
+Réel négatif      Faux positif      Vrai négatif
+```
+
+La precision répond à "parmi les positifs prédits, combien le sont vraiment" :
+
+```python
+precision = vrais_positifs / (vrais_positifs + faux_positifs)
+```
+
+Une précision élevée signale peu de fausses alertes — elle compte quand un faux positif coûte
+cher, bloquer un client légitime en détection de fraude par exemple.
+
+Le recall répond à une autre question : "parmi les positifs réels, combien sont détectés" :
+
+```python
+recall = vrais_positifs / (vrais_positifs + faux_negatifs)
+```
+
+Un recall élevé signale peu de cas manqués — il compte quand un faux négatif coûte cher, un cas
+de fraude non détecté, ou un patient réellement malade qu'on laisse passer.
+
+Les deux évoluent en sens opposé selon le seuil de décision choisi : augmenter le seuil
+augmente généralement la précision mais réduit le recall, et inversement.
+
+```python
+from sklearn.metrics import precision_recall_curve
+
+precisions, recalls, seuils = precision_recall_curve(y_test, probas_predites)
+```
+
+Tracer cette courbe permet de choisir un seuil qui reflète le compromis acceptable pour le
+métier, plutôt que de garder le seuil par défaut de 0,5 sans justification.
+
+Le F1-score, moyenne harmonique de precision et recall, sert de résumé utile quand les deux
+comptent à peu près également. Mais si le coût d'un faux positif et d'un faux négatif diffèrent
+fortement — presque toujours le cas en risque — le F1-score masque ce déséquilibre. Le
+F-bêta généralise le F1 en pondérant explicitement l'un ou l'autre selon leur importance
+relative :
+
+```python
+from sklearn.metrics import fbeta_score
+
+f2 = fbeta_score(y_test, y_pred, beta=2)  # pondère le recall deux fois plus que la precision
+```
+
+Le bon réflexe n'est pas de chercher "la meilleure métrique" dans l'absolu, mais de traduire le
+coût métier réel des deux types d'erreurs en un choix de métrique et de seuil explicite.

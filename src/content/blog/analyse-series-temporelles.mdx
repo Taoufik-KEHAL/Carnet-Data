@@ -1,0 +1,48 @@
+---
+title: "Analyse de séries temporelles : décomposition et prévision"
+description: "Se lancer directement dans un modèle de prévision sans décomposer la série revient à modéliser un mélange de signaux comme s'il s'agissait d'un seul phénomène."
+pillar: "data-analysis"
+entryNumber: 39
+publishDate: 2026-12-16
+---
+
+Une série temporelle se décompose en trois éléments : la tendance, l'évolution de long terme ;
+la saisonnalité, un motif qui se répète à intervalle régulier ; et le résidu, ce qui reste une
+fois les deux premiers retirés, l'imprévisible.
+
+```python
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+decomposition = seasonal_decompose(serie, model="additif", period=12)
+decomposition.plot()
+```
+
+Le choix entre modèle additif, les composantes s'ajoutent, et multiplicatif, elles se
+multiplient, dépend de si l'amplitude de la saisonnalité reste stable ou croît avec le niveau
+de la série — une hausse de ventes en décembre proportionnelle au volume total suggère un
+modèle multiplicatif.
+
+Beaucoup de modèles de prévision classiques, ARIMA en tête, supposent une série stationnaire —
+dont les propriétés statistiques ne changent pas dans le temps. Le test de Dickey-Fuller
+augmenté permet de vérifier cette hypothèse avant de se lancer :
+
+```python
+from statsmodels.tsa.stattools import adfuller
+
+resultat = adfuller(serie)
+print(f"p-value : {resultat[1]:.4f}")  # < 0.05 suggère une série stationnaire
+```
+
+Une série non stationnaire se rend souvent stationnaire par différenciation, soustraire chaque
+valeur à la précédente, avant modélisation.
+
+Le piège le plus courant reste l'extrapolation naïve de tendance : prolonger une tendance
+linéaire récente sur un horizon long ignore que la plupart des phénomènes réels ont des limites
+structurelles — marché saturé, contrainte physique, changement de régime. Une prévision à court
+terme basée sur la tendance récente est raisonnable ; extrapoler cette même tendance sur
+plusieurs années l'est rarement.
+
+Avant de sortir l'artillerie lourde, un modèle naïf — la prévision de demain est la valeur
+d'aujourd'hui, ou la même période l'année dernière — sert de référence minimale. Un modèle plus
+complexe, ARIMA, Prophet, réseaux récurrents, qui ne bat pas cette référence n'apporte pas de
+valeur réelle, malgré sa sophistication apparente.

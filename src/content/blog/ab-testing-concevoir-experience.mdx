@@ -1,0 +1,45 @@
+---
+title: "A/B testing : concevoir une expérience fiable"
+description: "La partie difficile d'un A/B test n'est presque jamais l'analyse statistique finale — c'est la conception de l'expérience en amont."
+pillar: "data-analysis"
+entryNumber: 35
+publishDate: 2026-12-04
+---
+
+Choisir la métrique de succès après avoir vu les résultats ouvre la porte à sélectionner celle
+qui montre l'effet le plus favorable — une forme de p-hacking. La métrique principale, le seuil
+de significativité et la durée du test doivent être fixés avant le lancement, dans un document
+daté et partagé avec les parties prenantes.
+
+Calculer la taille d'échantillon nécessaire à l'avance évite deux écueils symétriques :
+
+```python
+from statsmodels.stats.power import NormalIndPower
+
+analyse = NormalIndPower()
+taille_necessaire = analyse.solve_power(
+    effect_size=0.1,
+    alpha=0.05,
+    power=0.8,
+)
+print(f"Taille d'échantillon nécessaire par groupe : {taille_necessaire:.0f}")
+```
+
+Sans ce calcul, un test peut tourner pendant des semaines sans jamais atteindre la puissance
+statistique nécessaire pour détecter un effet réel, ou au contraire s'arrêter trop tôt.
+
+Un risque qu'on oublie facilement : la contamination entre groupes. Si les utilisateurs du
+groupe test et du groupe contrôle interagissent entre eux — partage d'un lien, effet de réseau,
+un même utilisateur vu sur deux appareils assignés différemment — l'effet mesuré est biaisé. La
+randomisation doit se faire au niveau de l'unité qui ne peut pas "contaminer" une autre unité
+du groupe opposé, souvent l'utilisateur plutôt que la session.
+
+Les effets de nouveauté et de saisonnalité méritent aussi l'attention : un changement testé
+pendant une période atypique, soldes, fêtes, peut produire un effet qui ne se reproduit pas en
+période normale. Un effet de nouveauté peut de son côté s'estomper après quelques jours d'usage
+— un test trop court capture cet effet transitoire plutôt que l'effet stable à long terme.
+
+Et un test dont on ne garde que la conclusion, "le variant B a gagné", perd l'essentiel de sa
+valeur pour l'organisation. Documenter l'hypothèse initiale, la méthode et les résultats
+complets permet de réutiliser l'apprentissage même quand le résultat est négatif ou peu
+concluant.

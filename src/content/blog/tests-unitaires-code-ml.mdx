@@ -1,0 +1,48 @@
+---
+title: "Tests unitaires pour du code de Machine Learning"
+description: "On ne peut pas garantir une prédiction exacte, mais presque tout ce qui entoure un modèle est testable — et rarement testé en pratique."
+pillar: "mlops"
+entryNumber: 16
+publishDate: 2026-10-08
+---
+
+"On ne peut pas tester un modèle comme du code classique" — j'entends souvent cet argument
+pour justifier l'absence totale de tests sur un projet ML, alors qu'il ne couvre en réalité
+qu'une petite partie du code concerné.
+
+Le pipeline de préparation des données est parfaitement testable : une fonction qui transforme
+des données brutes en features doit produire une sortie déterministe pour une entrée donnée,
+comme n'importe quelle fonction. Les invariants du modèle aussi — un modèle de scoring doit
+renvoyer une probabilité entre 0 et 1, un classifieur une classe parmi celles connues à
+l'entraînement. Et les cas limites, valeurs manquantes, colonnes vides, une seule ligne en
+entrée, doivent échouer proprement ou être gérés, pas planter en silence.
+
+```python
+def test_feature_frequence_toujours_positive():
+    df = pd.DataFrame({"nb_sinistres": [0, 3, 1], "exposition": [1.0, 0.5, 2.0]})
+    resultat = calculer_frequence(df)
+    assert (resultat["frequence"] >= 0).all()
+
+def test_pipeline_gere_valeurs_manquantes():
+    df = pd.DataFrame({"age": [25, None, 40]})
+    resultat = preparer_features(df)
+    assert not resultat.isnull().any().any()
+```
+
+Pour le modèle lui-même, on ne peut pas garantir une prédiction exacte, mais on peut garantir
+qu'un modèle réentraîné reste dans une plage de performance acceptable :
+
+```python
+def test_performance_minimale():
+    modele = charger_dernier_modele()
+    auc = evaluer(modele, jeu_de_test_fige)
+    assert auc >= 0.75, f"AUC {auc} sous le seuil minimal"
+```
+
+Le "jeu de test figé" compte ici : il doit rester stable dans le temps pour que le test mesure
+une vraie régression, pas une variation due à un changement de données.
+
+Un pipeline entièrement testé et vert peut quand même produire un modèle biaisé ou peu utile en
+production — les tests garantissent que le code fait ce qu'il est censé faire, pas que ce qu'il
+est censé faire est la bonne chose. La validation métier et le monitoring restent nécessaires
+en plus des tests, pas à leur place.

@@ -1,0 +1,39 @@
+---
+title: "A/B testing de modèles en production"
+description: "Un modèle qui bat l'ancien hors ligne ne garantit rien en production — les conditions réelles ne se laissent jamais parfaitement capturer par un jeu de test statique."
+pillar: "mlops"
+entryNumber: 31
+publishDate: 2026-11-22
+---
+
+Le principe : répartir le trafic réel aléatoirement entre le modèle actuel (champion) et le
+nouveau (challenger), puis comparer leurs performances sur des métriques métier réelles, pas
+uniquement sur des métriques de Machine Learning.
+
+```python
+def router_prediction(client_id, features):
+    groupe = "challenger" if hash(client_id) % 100 < 10 else "champion"  # 10% de trafic
+    modele = modele_challenger if groupe == "challenger" else modele_champion
+    prediction = modele.predict(features)
+    logger_resultat(client_id, groupe, prediction)
+    return prediction
+```
+
+Router selon un hash de l'identifiant client, plutôt qu'un tirage aléatoire à chaque requête,
+garantit qu'un même client reste dans le même groupe pendant toute la durée du test — condition
+nécessaire pour une comparaison propre.
+
+Une AUC supérieure sur le nouveau modèle ne garantit pas un meilleur résultat métier. Il faut
+suivre en parallèle des métriques d'impact réel : taux d'approbation, taux de défaut observé
+avec un délai, revenu généré, taux de réclamation, selon le contexte.
+
+Arrêter un test dès qu'un résultat "significatif" apparaît, souvent après quelques jours,
+gonfle le risque de faux positif, pour la même raison qu'un p-hacking en analyse statistique.
+La durée doit être fixée à l'avance, en fonction du volume de trafic nécessaire pour détecter
+un effet de la taille attendue, pas ajustée après coup selon les résultats provisoires.
+
+Un cas particulier mérite l'attention en risque de crédit ou en assurance : la vraie mesure de
+performance, défaut ou sinistre, n'est connue que des mois après la prédiction. Un A/B test
+doit durer suffisamment longtemps pour observer ces résultats différés, pas seulement les
+métriques immédiates comme le taux d'approbation, qui peuvent diverger de la performance
+réelle à long terme.

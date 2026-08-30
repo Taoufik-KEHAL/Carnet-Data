@@ -1,0 +1,43 @@
+---
+title: "Gérer les classes déséquilibrées en classification"
+description: "Un modèle qui prédit toujours la classe majoritaire peut afficher 99% d'exactitude tout en étant complètement inutile."
+pillar: "ml-fondamentaux"
+entryNumber: 27
+publishDate: 2026-11-10
+---
+
+Fraude, défaut de paiement, sinistre grave : ces problèmes partagent un trait commun, la classe
+positive est rare. Sur un jeu de données à 1 % de positifs, un modèle qui ne prédit jamais la
+classe positive obtient déjà 99 % d'exactitude — la métrique se comporte bien seulement quand
+les classes sont équilibrées. Sur des classes déséquilibrées, mieux vaut lui préférer l'AUC, le
+F1-score, ou la précision/rappel selon le coût métier de chaque type d'erreur.
+
+Deux familles de solutions pour rééquilibrer l'entraînement. Rééchantillonner les données :
+
+```python
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+
+X_resampled, y_resampled = SMOTE(random_state=42).fit_resample(X_train, y_train)
+X_under, y_under = RandomUnderSampler(random_state=42).fit_resample(X_train, y_train)
+```
+
+SMOTE génère des exemples synthétiques par interpolation entre voisins existants plutôt que de
+simplement dupliquer les cas rares, ce qui limite le surapprentissage sur des doublons exacts.
+
+Ou repondérer, sans toucher aux données elles-mêmes :
+
+```python
+from sklearn.ensemble import RandomForestClassifier
+
+model = RandomForestClassifier(class_weight="balanced")
+```
+
+Cette seconde approche est souvent plus simple à mettre en œuvre et à auditer, puisqu'elle ne
+duplique ni ne synthétise rien.
+
+Le piège à éviter absolument : rééquilibrer le jeu de données avant le split train/test, ou
+avant chaque fold de validation croisée. Ça fait fuiter de l'information et gonfle
+artificiellement la performance mesurée. Le rééquilibrage ne doit s'appliquer qu'au jeu
+d'entraînement — le jeu de test doit rester représentatif de la vraie distribution rencontrée en
+production, déséquilibre inclus.

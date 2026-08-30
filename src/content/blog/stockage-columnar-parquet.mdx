@@ -1,0 +1,38 @@
+---
+title: "Stockage columnar : comprendre Parquet et son intérêt"
+description: "Remplacer CSV par Parquet dans un pipeline apporte souvent plus de gain qu'une optimisation de code, pour une raison purement structurelle."
+pillar: "big-data-cloud"
+entryNumber: 28
+publishDate: 2026-11-13
+---
+
+Un CSV stocke les données ligne par ligne : toutes les valeurs d'une ligne sont contiguës sur
+le disque. Parquet les stocke colonne par colonne : toutes les valeurs d'une même colonne sont
+contiguës.
+
+```
+CSV (par ligne)     : [id1,nom1,age1] [id2,nom2,age2] [id3,nom3,age3]
+Parquet (par colonne): [id1,id2,id3] [nom1,nom2,nom3] [age1,age2,age3]
+```
+
+La plupart des requêtes analytiques ne lisent qu'un sous-ensemble de colonnes. Avec un stockage
+columnar, seules ces colonnes sont lues depuis le disque, les autres étant ignorées
+entièrement. Avec un CSV, il faut lire chaque ligne en entier, colonnes inutiles comprises.
+
+```python
+import pandas as pd
+
+df = pd.read_parquet("ventes.parquet", columns=["montant", "date"])
+```
+
+Le stockage par colonne compresse aussi mieux : des valeurs similaires regroupées ensemble se
+compressent plus efficacement que des types hétérogènes mélangés ligne par ligne. Et Parquet
+stocke le type de chaque colonne nativement, contrairement à un CSV qui ne distingue pas un
+entier d'une chaîne de caractères sans interprétation supplémentaire au chargement.
+
+Le compromis à connaître : Parquet n'est pas adapté à l'écriture ligne par ligne fréquente, un
+système transactionnel qui insère une ligne à la fois par exemple. Son intérêt se concrétise en
+lecture analytique sur de gros volumes, pas en écriture unitaire répétée. Pour un pipeline qui
+écrit par batch et relit ensuite pour de l'analyse ou de l'entraînement de modèle, remplacer
+CSV par Parquet est presque toujours un gain net, sans changement de logique métier
+nécessaire.

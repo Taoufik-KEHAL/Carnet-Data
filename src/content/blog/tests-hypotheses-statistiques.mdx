@@ -1,0 +1,51 @@
+---
+title: "Tests d'hypothèses statistiques pour data analysts"
+description: "\"La p-value est de 0,03, donc c'est significatif\" reste l'affirmation la plus mal comprise de l'analyse de données."
+pillar: "data-analysis"
+entryNumber: 30
+publishDate: 2026-11-19
+---
+
+Un test statistique part d'une hypothèse nulle — généralement "il n'y a pas de différence
+réelle" — et calcule la probabilité d'observer un résultat au moins aussi extrême que celui
+mesuré, si cette hypothèse était vraie. C'est exactement ce que représente la p-value, rien de
+plus.
+
+```python
+from scipy import stats
+
+groupe_a = [4.2, 3.8, 4.5, 4.1, 3.9]
+groupe_b = [4.8, 5.1, 4.6, 5.0, 4.9]
+
+t_stat, p_value = stats.ttest_ind(groupe_a, groupe_b)
+print(f"p-value : {p_value:.4f}")
+```
+
+Une p-value de 0,03 ne veut pas dire "3 % de chances que l'hypothèse nulle soit vraie" — c'est
+l'erreur d'interprétation la plus fréquente. Elle veut dire : si l'hypothèse nulle était vraie,
+on observerait un résultat aussi extrême dans 3 % des cas.
+
+Signification statistique n'est pas signification pratique. Sur un jeu de données
+suffisamment grand, des différences minuscules et sans intérêt métier deviennent
+"statistiquement significatives" simplement parce que la taille d'échantillon réduit la
+variance de l'estimation. La taille de l'effet mérite au moins autant d'attention que la
+p-value :
+
+```python
+import numpy as np
+
+d_cohen = (np.mean(groupe_b) - np.mean(groupe_a)) / np.std(groupe_a + groupe_b)
+```
+
+Un résultat significatif avec un effet négligeable n'a souvent aucune conséquence
+opérationnelle.
+
+Autre piège fréquent : tester 20 hypothèses différentes au seuil de 5 % produit, en moyenne, un
+résultat "significatif" par pur hasard, même sans différence réelle. Multiplier les tests sans
+correction — Bonferroni, ou contrôle du taux de faux positifs — gonfle artificiellement le
+nombre de résultats qui semblent intéressants.
+
+La bonne discipline reste de définir l'hypothèse et le seuil avant de regarder les données, pas
+après avoir cherché un résultat qui "marche" parmi plusieurs découpages possibles. Cette
+pratique, le p-hacking, produit des conclusions qui ne se répliquent pas sur de nouvelles
+données.

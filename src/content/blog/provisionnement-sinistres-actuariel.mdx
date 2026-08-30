@@ -1,0 +1,49 @@
+---
+title: "Provisionnement des sinistres : introduction aux méthodes actuarielles"
+description: "Certains sinistres restent ouverts des années après leur déclaration. Le provisionnement estime ce qu'ils coûteront au final."
+pillar: "risk-modeling"
+entryNumber: 20
+publishDate: 2026-10-20
+---
+
+En responsabilité civile ou en dommages corporels, un sinistre déclaré aujourd'hui n'est pas
+forcément réglé aujourd'hui — certains restent ouverts pendant des mois, voire des années. Le
+provisionnement répond à une question différente du scoring de risque classique : combien
+coûteront, au final, les sinistres déjà survenus mais pas encore totalement payés ?
+
+L'outil de base reste le triangle de développement, qui organise les paiements par année de
+survenance en ligne et par période écoulée depuis cette survenance en colonne :
+
+```
+Année survenance | Période 1 | Période 2 | Période 3 | ...
+2023              |   1200    |   1850    |   1920    |
+2024              |   1350    |   2010    |     ?     |
+2025              |   1400    |     ?     |     ?     |
+```
+
+Les cellules manquantes — le triangle "à compléter" — sont ce qu'on cherche à estimer.
+
+La méthode la plus répandue, Chain Ladder, applique des facteurs de développement calculés à
+partir des années passées pour projeter ces cellules :
+
+```python
+import numpy as np
+
+facteur_dev = triangle.iloc[:, 2].sum() / triangle.iloc[:-1, 1].sum()
+triangle.iloc[-1, 2] = triangle.iloc[-1, 1] * facteur_dev
+```
+
+L'idée sous-jacente : le rythme de développement des sinistres d'une année récente suit le même
+schéma que les années précédentes, une fois normalisé.
+
+Des modèles plus flexibles — GLM sur les incréments de paiement, Machine Learning sur des
+features de sinistre individuelles — peuvent affiner les provisions, surtout quand le
+comportement de développement change dans le temps : inflation, évolution réglementaire,
+nouvelles pratiques de gestion. Mais Chain Ladder reste la référence de comparaison. Un modèle
+plus sophistiqué doit démontrer un gain réel de précision avant de le remplacer en production,
+pas seulement afficher plus de complexité.
+
+Une provision sous-estimée expose à un risque de solvabilité, une provision surestimée
+immobilise du capital inutilement — ce n'est pas un exercice académique, c'est un chiffre qui
+engage directement le bilan de l'entreprise. D'où l'exigence de rigueur et d'audit externe qui
+l'entoure.

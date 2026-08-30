@@ -1,0 +1,49 @@
+---
+title: "Value at Risk (VaR) : calcul et limites"
+description: "Devenue un standard réglementaire, la VaR répond à une question précise — et reste silencieuse sur une autre, bien plus importante en période de crise."
+pillar: "risk-modeling"
+entryNumber: 25
+publishDate: 2026-11-04
+---
+
+La Value at Risk répond à une question précise : quelle perte maximale ne devrait pas être
+dépassée, avec une probabilité donnée, sur une période donnée. C'est un standard réglementaire
+— Bâle pour les banques, Solvabilité II pour l'assurance — mais sa simplicité apparente cache
+des limites qu'on découvre surtout quand elles comptent le plus.
+
+Trois méthodes de calcul coexistent. La méthode historique utilise directement la distribution
+empirique des rendements passés, sans hypothèse de forme. La méthode paramétrique
+(variance-covariance) suppose une distribution, généralement normale, et calcule la VaR
+analytiquement. La simulation de Monte Carlo génère un grand nombre de scénarios futurs selon
+un modèle stochastique, puis calcule la VaR empiriquement dessus.
+
+```python
+import numpy as np
+
+rendements = portefeuille["rendement_quotidien"]
+var_95_historique = np.percentile(rendements, 5)
+
+print(f"VaR 95% (1 jour) : {var_95_historique:.2%}")
+```
+
+Ce que la VaR ne dit pas : l'ampleur des pertes au-delà du seuil choisi. Deux portefeuilles
+peuvent avoir la même VaR à 95 % avec des pertes radicalement différentes dans le 5 % restant —
+l'un modérément pire, l'autre catastrophique. C'est précisément ce qui a été pointé après 2008 :
+la VaR n'alerte pas sur le risque de queue extrême.
+
+L'Expected Shortfall répond à cette limite en mesurant la perte moyenne au-delà du seuil de
+VaR, plutôt que le seuil lui-même :
+
+```python
+seuil = np.percentile(rendements, 5)
+expected_shortfall = rendements[rendements <= seuil].mean()
+```
+
+Bâle III exige d'ailleurs de plus en plus l'Expected Shortfall en complément ou en
+remplacement de la VaR, pour cette raison.
+
+Le vrai piège reste l'hypothèse de distribution : la méthode paramétrique suppose souvent une
+distribution normale, alors que les marchés financiers présentent des queues plus épaisses que
+ce qu'une loi normale prédit — les événements extrêmes sont plus fréquents que le modèle ne le
+suggère. Une VaR calculée sous cette hypothèse sous-estime donc systématiquement le risque réel
+en période de stress, exactement quand cette mesure importe le plus.

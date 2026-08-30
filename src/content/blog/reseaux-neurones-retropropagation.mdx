@@ -1,0 +1,44 @@
+---
+title: "Réseaux de neurones : comprendre la rétropropagation simplement"
+description: "Sous le mur de dérivées partielles se cache une idée assez simple : ajuster chaque poids selon sa part de responsabilité dans l'erreur finale."
+pillar: "ml-fondamentaux"
+entryNumber: 32
+publishDate: 2026-11-25
+---
+
+Un réseau de neurones fait une prédiction, on la compare à la vraie valeur, on obtient une
+erreur. La question que résout la rétropropagation : comment ajuster les milliers, parfois
+millions, de poids du réseau pour réduire cette erreur la prochaine fois ?
+
+Un réseau se compose de couches successives. La rétropropagation calcule, couche par couche en
+partant de la sortie, la contribution de chaque poids à l'erreur finale — via la règle de
+dérivation en chaîne — puis ajuste chaque poids proportionnellement à cette contribution.
+
+```python
+import numpy as np
+
+# Passage avant
+z = np.dot(X, poids) + biais
+sortie = sigmoid(z)
+erreur = sortie - y_vrai
+
+# Passage arrière — gradient simplifié pour une couche
+gradient_poids = np.dot(X.T, erreur * sortie * (1 - sortie))
+poids -= taux_apprentissage * gradient_poids
+```
+
+`gradient_poids` indique dans quelle direction et avec quelle intensité chaque poids doit
+changer pour réduire l'erreur — c'est la descente de gradient, appliquée couche par couche
+grâce à la rétropropagation.
+
+Pourquoi propager en arrière plutôt qu'en avant : l'erreur se calcule facilement à la couche de
+sortie. Pour les couches précédentes, il faut d'abord savoir combien la couche suivante a
+contribué à l'erreur, avant de pouvoir calculer l'ajustement des poids de la couche courante —
+d'où le sens de propagation, de la sortie vers l'entrée, à l'inverse de la prédiction qui va de
+l'entrée vers la sortie.
+
+En pratique, personne ne calcule ces gradients à la main — PyTorch ou TensorFlow le font
+automatiquement via la différentiation automatique. L'intérêt de comprendre le principe n'est
+pas de reproduire le calcul, mais de savoir diagnostiquer des problèmes classiques
+d'entraînement, gradient qui explose ou qui s'annule, qui découlent directement de ce
+mécanisme de propagation couche par couche.

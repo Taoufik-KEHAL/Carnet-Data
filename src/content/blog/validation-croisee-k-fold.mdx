@@ -1,0 +1,57 @@
+---
+title: "Validation croisée : k-fold, stratifiée, et leurs pièges"
+description: "Un seul split train/test donne une performance qui dépend en partie du hasard du découpage. La validation croisée réduit ce risque, mal appliquée elle le cache juste autrement."
+pillar: "ml-fondamentaux"
+entryNumber: 22
+publishDate: 2026-10-26
+---
+
+Le principe du k-fold : le jeu de données est divisé en *k* parties égales, et le modèle
+s'entraîne *k* fois, en utilisant à chaque fois une partie différente comme test et le reste
+comme entraînement.
+
+```python
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier
+
+model = RandomForestClassifier(n_estimators=200)
+scores = cross_val_score(model, X, y, cv=5, scoring="roc_auc")
+
+print(f"AUC moyenne : {scores.mean():.3f} (± {scores.std():.3f})")
+```
+
+L'écart-type des scores compte autant que la moyenne : une grande variance entre les folds
+signale un modèle instable, sensible au découpage précis des données.
+
+Sur des classes déséquilibrées, la stratification devient indispensable. Un k-fold classique
+peut, par hasard, produire un fold avec très peu d'exemples de la classe minoritaire ;
+`StratifiedKFold` garantit que chaque fold respecte la proportion des classes du jeu complet.
+
+```python
+from sklearn.model_selection import StratifiedKFold
+
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_val_score(model, X, y, cv=cv, scoring="roc_auc")
+```
+
+Le piège classique, et je le vois revenir souvent : toute transformation qui dépend des
+données — normalisation, imputation, sélection de features — doit être calculée à l'intérieur
+de chaque fold, jamais sur l'ensemble avant le découpage. Un `StandardScaler.fit()` appliqué
+avant la validation croisée laisse fuiter de l'information du test vers l'entraînement, ce qui
+gonfle artificiellement la performance mesurée.
+
+```python
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("model", RandomForestClassifier()),
+])
+scores = cross_val_score(pipeline, X, y, cv=cv)  # fit du scaler refait à chaque fold
+```
+
+Ce que la validation croisée ne corrige pas : un biais structurel, par exemple des données
+d'entraînement non représentatives de la population réelle en production. Une AUC de
+validation croisée excellente reste compatible avec un modèle qui se dégrade fortement une
+fois déployé, si le monde a changé depuis la collecte des données.
