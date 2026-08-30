@@ -1,16 +1,14 @@
 ---
 title: "Déployer un modèle ML avec Docker et FastAPI"
-description: "Empaqueter un modèle entraîné dans une API REST reproductible, du fichier modèle jusqu'au conteneur prêt pour la production."
+description: "Un modèle sauvegardé dans un .pkl ne sert à personne tant qu'il n'est pas accessible via une API. Le duo Docker + FastAPI suffit dans la grande majorité des cas."
 pillar: "mlops"
 entryNumber: 8
 publishDate: 2026-09-10
 ---
 
-Un modèle entraîné et sauvegardé dans un fichier `.pkl` n'est utile à personne tant qu'il n'est
-pas accessible via une interface que d'autres services peuvent appeler. FastAPI et Docker
-forment une combinaison simple et suffisante pour la grande majorité des cas d'usage.
-
-## L'API de prédiction
+FastAPI pour l'API, Docker pour l'empaqueter — c'est le montage le plus rapide pour sortir un
+modèle du notebook et le rendre appelable par un autre service. Pas besoin d'orchestrateur
+complexe pour un premier déploiement.
 
 ```python
 # app.py
@@ -32,10 +30,9 @@ def health():
     return {"status": "ok"}
 ```
 
-L'endpoint `/health` n'est pas accessoire : c'est ce que l'orchestrateur (Kubernetes, un load
-balancer) utilise pour savoir si l'instance est prête à recevoir du trafic.
-
-## Le Dockerfile
+L'endpoint `/health` n'est pas décoratif. C'est ce que l'orchestrateur ou le load balancer
+interroge pour savoir si l'instance peut recevoir du trafic — l'oublier fait souvent perdre une
+soirée de débogage plus tard.
 
 ```dockerfile
 FROM python:3.12-slim
@@ -49,12 +46,11 @@ COPY modele.pkl app.py .
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-L'intérêt du conteneur n'est pas seulement le déploiement : c'est la garantie que les versions
-de scikit-learn, pandas et Python utilisées en production sont exactement celles avec
-lesquelles le modèle a été entraîné. Un décalage de version, même mineur, peut changer
-silencieusement le comportement du modèle.
-
-## Tester avant de déployer
+Le vrai bénéfice du conteneur n'est pas le déploiement en soi, c'est la garantie que
+scikit-learn et pandas tournent en production exactement dans les versions utilisées à
+l'entraînement. Un écart de version mineur peut changer silencieusement le comportement d'un
+modèle — j'ai vu une différence de version de scikit-learn faire varier une probabilité de
+prédiction de plusieurs points, sans erreur, sans warning.
 
 ```bash
 docker build -t scoring-api .
@@ -65,10 +61,7 @@ curl -X POST http://localhost:8000/predict \
   -d '{"age": 34, "revenu": 42000, "anciennete": 5}'
 ```
 
-## Ce que cette approche ne couvre pas
-
-Ce montage convient bien à un trafic modéré avec une latence d'inférence raisonnable. Pour un
-volume élevé ou des besoins de scaling automatique, il faudra ajouter un orchestrateur
-(Kubernetes) et probablement séparer le chargement du modèle du cycle de vie de l'API — par
-exemple via un serveur de modèles dédié (BentoML, Triton). Mais pour un premier déploiement ou
-une API interne à faible trafic, Docker et FastAPI suffisent largement, sans complexité inutile.
+Cette approche tient bien pour un trafic modéré. Au-delà, ou pour du scaling automatique, il
+faudra ajouter Kubernetes et probablement séparer le chargement du modèle du cycle de vie de
+l'API, via un serveur dédié comme BentoML ou Triton. Mais pour une première mise en prod ou une
+API interne à faible trafic, ça suffit largement.

@@ -1,36 +1,23 @@
 ---
 title: "XGBoost vs Random Forest : lequel choisir et pourquoi"
-description: "Deux modèles à base d'arbres, deux philosophies différentes — comment trancher selon le problème réel."
+description: "Deux ensembles d'arbres de décision, deux philosophies d'apprentissage différentes — le choix mérite d'être réfléchi plutôt qu'automatique."
 pillar: "ml-fondamentaux"
 entryNumber: 3
 publishDate: 2026-08-24
 ---
 
-XGBoost et Random Forest sont tous deux des ensembles d'arbres de décision, mais leur
-fonctionnement diffère assez pour justifier un choix réfléchi plutôt qu'un réflexe.
+Random Forest entraîne de nombreux arbres indépendamment, sur des sous-échantillons aléatoires
+des données, puis moyenne leurs prédictions — chaque arbre vote séparément. XGBoost construit
+ses arbres de façon séquentielle : chaque nouvel arbre corrige les erreurs des arbres
+précédents. L'apprentissage est cumulatif d'un côté, indépendant de l'autre, et ça change
+beaucoup de choses en pratique.
 
-## La différence fondamentale
-
-**Random Forest** entraîne de nombreux arbres indépendamment, sur des sous-échantillons
-aléatoires des données, puis moyenne leurs prédictions. Chaque arbre "vote" séparément.
-
-**XGBoost** (gradient boosting) construit les arbres de façon séquentielle : chaque nouvel
-arbre corrige les erreurs des arbres précédents. C'est une stratégie fondamentalement
-différente — l'apprentissage est cumulatif, pas indépendant.
-
-## Quand préférer Random Forest
-
-- Le jeu de données est petit à moyen et le risque de surapprentissage (*overfitting*) est
-  une préoccupation réelle
-- Vous avez besoin d'un modèle robuste avec peu de réglage d'hyperparamètres
-- L'entraînement doit être facilement parallélisable
-
-## Quand préférer XGBoost
-
-- La performance brute est prioritaire et vous pouvez investir du temps dans le réglage
-  des hyperparamètres (taux d'apprentissage, profondeur, régularisation)
-- Le jeu de données est de taille moyenne à grande
-- Vous avez besoin de gérer nativement les valeurs manquantes
+Random Forest reste préférable quand le jeu de données est petit à moyen et que le risque de
+surapprentissage est une vraie préoccupation, quand on veut un modèle robuste avec peu de
+réglage d'hyperparamètres, ou quand l'entraînement doit être facilement parallélisable.
+XGBoost prend l'avantage quand la performance brute prime et qu'on peut investir du temps dans
+le réglage — taux d'apprentissage, profondeur, régularisation —, sur des jeux de données de
+taille moyenne à grande, ou quand il faut gérer nativement les valeurs manquantes.
 
 ```python
 import xgboost as xgb
@@ -48,8 +35,8 @@ xgb_model = xgb.XGBClassifier(
 )
 ```
 
-## Le vrai conseil
-
-Dans la pratique, tester les deux coûte peu de temps et donne une réponse empirique plus
-fiable que n'importe quelle règle générale. La question à se poser n'est pas "lequel est
-meilleur ?" mais "lequel est meilleur *pour ce jeu de données, avec ces contraintes* ?"
+Dans la pratique, tester les deux coûte peu de temps et donne une réponse empirique bien plus
+fiable que n'importe quelle règle générale lue dans un article. La question à se poser n'est
+pas "lequel est meilleur" mais "lequel est meilleur pour ce jeu de données précis, avec ces
+contraintes précises" — et souvent, seul un test réel sur les données en question tranche
+vraiment.

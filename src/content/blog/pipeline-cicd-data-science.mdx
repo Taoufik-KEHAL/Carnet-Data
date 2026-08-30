@@ -1,27 +1,24 @@
 ---
 title: "Pipeline CI/CD pour un projet de Data Science"
-description: "Automatiser l'entraînement, la validation et le déploiement d'un modèle, en adaptant le CI/CD classique aux spécificités du Machine Learning."
+description: "Adapter le CI/CD classique au Machine Learning demande une étape que le DevOps ignore : vérifier que le modèle est bon, pas juste que le code tourne."
 pillar: "mlops"
 entryNumber: 5
 publishDate: 2026-08-31
 ---
 
-Le CI/CD appliqué au code fonctionne bien : on teste, on build, on déploie. Appliqué à un
-modèle de Machine Learning, il faut ajouter une étape que le DevOps classique ignore : valider
-que le modèle est *bon*, pas seulement que le code compile.
+J'ai vu un pipeline CI/CD "tout vert" déployer en production un modèle nettement moins bon que
+celui qu'il remplaçait. Les tests unitaires passaient, le build passait, tout passait — sauf
+que personne n'avait pensé à vérifier la performance du nouveau modèle par rapport à l'ancien.
+C'est le trou que le CI/CD classique laisse ouvert sur un projet ML.
 
-## Ce qui change par rapport au CI/CD classique
+## Ce qui manque au CI/CD standard
 
-Un pipeline ML doit répondre à des questions qu'un pipeline logiciel ne se pose pas :
+Un pipeline logiciel classique répond à "le code compile, les tests passent". Un pipeline ML
+doit en plus répondre à trois questions supplémentaires : les données d'entrée respectent-elles
+le schéma attendu, le nouveau modèle est-il au moins aussi bon que celui en place, et le temps
+d'inférence reste-t-il dans les clous de latence acceptés.
 
-- Les données d'entrée respectent-elles le schéma attendu ?
-- Le modèle nouvellement entraîné est-il au moins aussi performant que celui en production ?
-- Le temps d'inférence reste-t-il compatible avec les contraintes de latence ?
-
-Un pipeline qui déploie automatiquement un modèle moins performant que le précédent, sous
-prétexte que "les tests unitaires passent", n'a résolu qu'une partie du problème.
-
-## Structure d'un pipeline minimal
+## Structure minimale
 
 ```yaml
 # .github/workflows/ml-pipeline.yml
@@ -48,21 +45,17 @@ jobs:
       - run: python scripts/register_model.py --stage Staging
 ```
 
-L'étape `evaluate.py --min-auc 0.75` est la clé : elle fait échouer le pipeline si le modèle
-ne dépasse pas un seuil de performance fixé à l'avance, exactement comme un test unitaire fait
-échouer un build.
+`evaluate.py --min-auc 0.75` fait échouer le pipeline si le seuil n'est pas atteint, exactement
+comme un test unitaire ferait échouer un build classique.
 
-## Le déploiement reste une décision, pas un automatisme total
+## Automatiser l'entraînement, pas forcément la mise en prod
 
-Passer un modèle de `Staging` à `Production` mérite en général une validation humaine, au moins
-tant que l'équipe n'a pas une confiance établie dans le pipeline. Une approche courante :
-automatiser entièrement l'entraînement et l'évaluation, mais garder une étape d'approbation
-manuelle avant la bascule en production — via une pull request sur le Model Registry ou une
-validation explicite dans l'outil de CI.
+Tant qu'une équipe n'a pas une confiance établie dans son pipeline, garder une validation
+humaine avant de passer un modèle de `Staging` à `Production` reste une bonne idée — via une
+pull request sur le Registry, ou une approbation explicite dans l'outil de CI. Automatiser
+entièrement l'entraînement et l'évaluation, oui ; automatiser la décision finale, pas
+immédiatement.
 
-## Le piège à éviter
-
-Ne pas confondre "le pipeline tourne sans erreur" avec "le modèle déployé est fiable". Un
-pipeline vert peut très bien déployer un modèle qui a surappris sur un jeu de test devenu, avec
-le temps, non représentatif. Le CI/CD automatise l'exécution, pas le jugement — les seuils de
-validation doivent être revus régulièrement, pas fixés une fois pour toutes.
+Un pipeline vert ne garantit rien sur la fiabilité du modèle si les seuils de validation n'ont
+pas été revus depuis des mois — un modèle peut très bien dépasser un seuil devenu obsolète
+parce que le jeu de test de référence, lui, n'a pas changé.

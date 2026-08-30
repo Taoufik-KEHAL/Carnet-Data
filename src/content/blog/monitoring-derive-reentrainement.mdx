@@ -1,30 +1,23 @@
 ---
 title: "Monitoring de modèles en production : dérive et réentraînement"
-description: "Détecter qu'un modèle se dégrade avant que ses erreurs ne coûtent cher, et décider objectivement quand le réentraîner."
+description: "La première alerte de dégradation d'un modèle est souvent une plainte métier. Avec un peu de monitoring, elle peut arriver bien avant."
 pillar: "mlops"
 entryNumber: 9
 publishDate: 2026-09-14
 ---
 
-Un modèle déployé n'est pas figé dans ses performances. Le monde qu'il décrit continue de
-changer, et sans monitoring dédié, la première alerte est souvent une plainte métier — bien
-trop tard.
+Deux types de dérive méritent d'être distingués, parce qu'ils se surveillent différemment. Le
+data drift concerne la distribution des variables d'entrée — nouveaux profils de clients,
+saisonnalité, évolution du marché — même si la relation entre variables et cible reste stable.
+Le concept drift, lui, touche à cette relation elle-même : un profil identique n'a plus le
+même comportement de risque qu'au moment de l'entraînement. Le second est plus dur à observer
+directement, parce qu'il suppose de connaître la vraie valeur cible, souvent disponible avec
+un gros délai.
 
-## Deux types de dérive
+## Le PSI, réutilisé du monde de la validation
 
-- **Data drift** — la distribution des variables d'entrée change (nouveaux profils de clients,
-  saisonnalité, évolution du marché), même si la relation entre variables et cible reste stable.
-- **Concept drift** — la relation elle-même change : un même profil de client n'a plus le même
-  comportement de risque qu'au moment de l'entraînement.
-
-Le premier se détecte en comparant les distributions d'entrée dans le temps. Le second est plus
-difficile à observer directement, car il suppose de connaître la vraie valeur cible — souvent
-disponible avec un délai (un sinistre survient des mois après la souscription, par exemple).
-
-## Mesurer la dérive avec le PSI
-
-Le Population Stability Index, déjà utilisé pour valider un modèle de risque avant mise en
-production, sert aussi en monitoring continu :
+Le Population Stability Index, déjà croisé en validation de modèle de risque, sert aussi en
+monitoring continu :
 
 ```python
 import numpy as np
@@ -39,25 +32,18 @@ def psi(distribution_reference, distribution_actuelle, bins=10):
     return np.sum((act_pct - ref_pct) * np.log(act_pct / ref_pct))
 ```
 
-Un PSI inférieur à 0,1 indique une population stable ; au-delà de 0,25, la dérive est
-généralement considérée comme suffisamment importante pour justifier une investigation.
+En pratique, en dessous de 0,1 la population est considérée stable ; au-delà de 0,25, ça
+mérite une investigation.
 
 ## Décider quand réentraîner
 
-Réentraîner à intervalle fixe (tous les mois, par exemple) est simple mais aveugle : soit trop
-fréquent et coûteux, soit trop rare face à une dérive rapide. Une approche plus robuste combine
-plusieurs signaux :
-
-1. **Dérive des features** — PSI au-dessus du seuil sur les variables clés.
-2. **Dégradation de performance** — dès que la vérité terrain est disponible, suivre l'AUC ou le
-   taux d'erreur glissant, pas seulement au moment du déploiement.
-3. **Volume de prédictions hors distribution** — une hausse des cas où le modèle est peu
-   confiant est souvent un signal précoce, avant même que la performance ne se dégrade
-   visiblement.
-
-## Le piège du réentraînement automatique
+Réentraîner à date fixe, tous les mois par exemple, est simple mais aveugle — trop fréquent et
+coûteux, ou trop lent face à une dérive rapide. Une approche plus solide combine trois signaux :
+le PSI sur les features clés, la dégradation de performance mesurée dès que la vérité terrain
+arrive, et le volume de prédictions hors distribution, souvent un signal précoce avant même que
+la performance visible ne bouge.
 
 Réentraîner automatiquement dès qu'un seuil est franchi, sans validation humaine, peut aggraver
-le problème si la dérive détectée provient d'une anomalie temporaire (incident de collecte de
-données, panne en amont) plutôt que d'une évolution réelle. Le monitoring doit déclencher une
-alerte et une investigation avant de déclencher un réentraînement.
+les choses si la dérive vient d'une anomalie temporaire — un incident de collecte de données,
+une panne en amont — plutôt que d'un vrai changement. Le monitoring devrait déclencher une
+alerte et une investigation en premier, le réentraînement automatique ensuite, pas l'inverse.

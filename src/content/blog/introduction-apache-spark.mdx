@@ -1,35 +1,29 @@
 ---
 title: "Introduction à Apache Spark pour les data scientists"
-description: "Ce qui change vraiment quand on passe de pandas à Spark, et les concepts à assimiler avant d'écrire la première ligne de PySpark."
+description: "Ce qui change concrètement en passant de pandas à Spark, vu du côté de quelqu'un qui n'a jamais touché un cluster."
 pillar: "big-data-cloud"
 entryNumber: 7
 publishDate: 2026-09-07
 ---
 
-pandas charge tout en mémoire sur une seule machine. Tant que le jeu de données tient dans la
-RAM disponible, c'est le bon choix — simple et rapide. Le jour où ce n'est plus le cas, la
-question n'est pas "comment optimiser pandas" mais "faut-il distribuer le calcul", et c'est
-là qu'intervient Spark.
+La question ne devrait presque jamais être "pandas ou Spark" mais "à partir de quel volume
+pandas commence à souffrir". Tant que les données tiennent en mémoire sur une machine, pandas
+reste plus simple et souvent plus rapide. Le jour où ce n'est plus le cas, Spark répond à un
+problème différent : distribuer le calcul sur plusieurs machines.
 
-## Le changement de modèle mental
+## Deux réflexes à changer
 
-Spark ne se contente pas de paralléliser pandas. Deux différences structurent tout le reste :
-
-- **Évaluation paresseuse (*lazy evaluation*)** — les transformations (`filter`, `select`,
-  `groupBy`) ne s'exécutent pas immédiatement. Spark construit un plan d'exécution et ne le
-  déclenche qu'à une action (`show`, `collect`, `write`).
-- **Distribution des données** — un DataFrame Spark est partitionné entre plusieurs exécuteurs,
-  potentiellement sur plusieurs machines. Le code ressemble à du pandas, mais s'exécute
-  différemment.
-
-## Un exemple simple
+Premier réflexe à perdre : Spark n'exécute rien tout de suite. Les transformations comme
+`filter`, `select` ou `groupBy` construisent un plan d'exécution, qui n'est déclenché qu'à une
+action comme `show()` ou `write()`. Deuxième réflexe à changer : les données sont partitionnées
+entre plusieurs exécuteurs, potentiellement sur plusieurs machines, alors que le code
+ressemble beaucoup à du pandas classique.
 
 ```python
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg
 
 spark = SparkSession.builder.appName("exploration").getOrCreate()
-
 df = spark.read.parquet("s3://bucket/transactions/")
 
 resultat = (
@@ -38,27 +32,19 @@ resultat = (
       .agg(avg("montant").alias("montant_moyen"))
 )
 
-resultat.show()  # déclenche réellement le calcul
+resultat.show()  # rien ne s'est exécuté avant cette ligne
 ```
 
-Rien de tout cela ne s'exécute avant `.show()` — `filter`, `groupBy` et `agg` ne font que
-décrire le plan.
+## Les erreurs qu'on importe de pandas sans le vouloir
 
-## Les erreurs classiques d'un profil pandas
+Appeler `.collect()` trop tôt rapatrie tout le résultat sur le driver et annule l'intérêt de
+la distribution. Ignorer le partitionnement — trop de petites partitions, ou une seule énorme —
+dégrade les performances même sur un cluster bien dimensionné. Et écrire des UDF Python pour
+traiter les lignes une par une casse l'optimisation interne de Spark ; les fonctions natives de
+`pyspark.sql.functions` couvrent la grande majorité des besoins sans ce coût.
 
-- **Appeler `.collect()` trop tôt** — cela rapatrie l'intégralité du résultat sur le driver,
-  annulant l'intérêt de la distribution si le volume est important.
-- **Ignorer le partitionnement** — un mauvais partitionnement (trop de petites partitions, ou
-  une seule énorme) dégrade fortement les performances, même avec un cluster correctement
-  dimensionné.
-- **Traiter Spark comme pandas ligne par ligne** — les UDF Python (`udf()`) cassent
-  l'optimisation interne de Spark ; privilégier les fonctions natives (`pyspark.sql.functions`)
-  chaque fois que possible.
-
-## Faut-il vraiment migrer ?
-
-Spark a un coût : complexité opérationnelle, temps de démarrage du cluster, débogage plus
-difficile qu'un `print()` dans un notebook. En dessous de quelques dizaines de gigaoctets, des
-outils comme DuckDB ou Polars offrent souvent un meilleur rapport simplicité/performance.
-Spark devient pertinent quand les données dépassent la mémoire d'une seule machine ou que le
-pipeline doit tourner régulièrement sur un cluster déjà en place.
+Spark a un vrai coût opérationnel : complexité de cluster, temps de démarrage, un débogage
+nettement moins confortable qu'un `print()` dans un notebook. En dessous de quelques dizaines
+de gigaoctets, DuckDB ou Polars donnent souvent un meilleur rapport simplicité/performance.
+Spark devient pertinent quand les données dépassent la mémoire d'une seule machine, ou que le
+pipeline doit tourner régulièrement sur un cluster déjà en place — pas avant.

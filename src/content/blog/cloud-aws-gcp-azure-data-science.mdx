@@ -1,46 +1,40 @@
 ---
 title: "Cloud AWS vs GCP vs Azure pour la Data Science"
-description: "Comparer les trois grandes plateformes sur les critères qui comptent vraiment pour un projet de Machine Learning, au-delà du prix affiché."
+description: "Le meilleur service managé du marché ne compense pas la friction de devoir jongler avec les données déjà stockées ailleurs."
 pillar: "big-data-cloud"
 entryNumber: 11
 publishDate: 2026-09-21
 ---
 
-Il n'y a pas de "meilleur cloud" en Data Science dans l'absolu — la réponse dépend de
-l'écosystème déjà en place dans l'entreprise et du type de charge de travail. Mais certains
-critères permettent de trancher pour un projet donné plutôt que de choisir par habitude.
+Chaque fois qu'on me demande "quel cloud choisir pour la Data Science", ma première question
+est "qu'est-ce que vous avez déjà". Le meilleur service managé sur le papier perd son avantage
+si l'équipe doit en permanence faire transiter des données déjà stockées chez un concurrent.
 
-## Les services managés de Machine Learning
+## Les trois offres managées
 
-- **AWS SageMaker** — le plus mature et le plus complet, mais aussi le plus complexe à
-  prendre en main ; écosystème très large (SageMaker Pipelines, Feature Store, Model Registry
-  intégrés).
-- **GCP Vertex AI** — expérience plus unifiée, bonne intégration avec BigQuery pour les
-  équipes déjà orientées SQL/analytics, et forte proposition sur l'IA générative (Gemini).
-- **Azure Machine Learning** — choix naturel pour les entreprises déjà sur l'écosystème
-  Microsoft (Active Directory, Power BI), bonne intégration avec Synapse pour le Big Data.
+AWS SageMaker reste le plus mature et le plus complet, avec un écosystème large — Pipelines,
+Feature Store, Model Registry intégrés — au prix d'une prise en main plus lourde. Vertex AI
+chez GCP propose une expérience plus unifiée, avec un vrai avantage pour les équipes déjà
+orientées BigQuery, et une forte proposition côté IA générative. Azure Machine Learning est le
+choix naturel des entreprises déjà dans l'écosystème Microsoft — Active Directory, Power BI —
+avec une bonne intégration Synapse pour le Big Data.
 
-## Le vrai critère souvent négligé : l'existant
+| Critère | AWS | GCP | Azure |
+|---|---|---|---|
+| Maturité ML managé | Très élevée | Élevée | Élevée |
+| Prise en main | Moyenne | Bonne | Bonne (écosystème MS) |
+| Data warehouse phare | Redshift | BigQuery | Synapse Analytics |
+| Point fort | Écosystème le plus large | Intégration analytics | Intégration entreprise |
 
-Le meilleur service managé du marché perd son avantage si l'équipe data doit interagir en
-permanence avec des données déjà stockées ailleurs (S3, BigQuery, Azure Data Lake). Le coût de
-transfert de données entre clouds (*egress*) et la friction opérationnelle de gérer plusieurs
-fournisseurs dépassent souvent le gain de fonctionnalités d'un service "meilleur sur le papier".
+## Le critère qu'on néglige
 
-## Comparaison rapide
+Le coût de transfert de données entre clouds (l'egress) et la friction opérationnelle de gérer
+plusieurs fournisseurs dépassent presque toujours le gain de fonctionnalités d'un service
+"meilleur sur le papier". Rester "cloud-agnostic" par principe, avec des outils compatibles
+partout (Kubernetes, Terraform, MLflow auto-hébergé), a un coût réel : on renonce aux services
+managés les plus performants de chaque plateforme pour une portabilité qu'on n'exploitera
+probablement jamais.
 
-| Critère                     | AWS                  | GCP                    | Azure                  |
-|------------------------------|----------------------|-------------------------|--------------------------|
-| Maturité ML managé            | Très élevée          | Élevée                  | Élevée                   |
-| Simplicité de prise en main   | Moyenne              | Bonne                   | Bonne (écosystème MS)    |
-| Data warehouse phare          | Redshift             | BigQuery                | Synapse Analytics        |
-| Point fort différenciant      | Écosystème le + large | Intégration analytics    | Intégration entreprise   |
-
-## Le piège du multi-cloud "par sécurité"
-
-Vouloir rester "cloud-agnostic" en utilisant des outils compatibles partout (Kubernetes,
-Terraform, MLflow auto-hébergé) a un coût réel : on renonce aux services managés les plus
-performants de chaque plateforme pour gagner une portabilité théorique, rarement exploitée en
-pratique. Sauf contrainte réglementaire ou stratégique explicite, mieux vaut choisir un cloud
-et exploiter pleinement son écosystème managé plutôt que d'optimiser pour un changement de
-fournisseur qui n'aura probablement jamais lieu.
+Sauf contrainte réglementaire ou stratégique explicite, je recommande de choisir un cloud et
+d'exploiter à fond son écosystème managé, plutôt que d'optimiser pour un changement de
+fournisseur hypothétique.

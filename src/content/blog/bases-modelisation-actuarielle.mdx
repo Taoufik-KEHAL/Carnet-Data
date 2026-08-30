@@ -1,36 +1,27 @@
 ---
 title: "Les bases de la modélisation actuarielle pour data scientists"
-description: "Fréquence, sévérité, exposition : les concepts actuariels à maîtriser avant de modéliser un risque assurantiel avec du Machine Learning."
+description: "Fréquence, sévérité, exposition : trois notions qui n'ont pas d'équivalent direct hors de l'assurance, et qu'il vaut mieux comprendre avant de modéliser."
 pillar: "risk-modeling"
 entryNumber: 14
 publishDate: 2026-10-01
 ---
 
-Un data scientist qui aborde l'assurance avec les réflexes du Machine Learning généraliste
-bute vite sur un vocabulaire et des contraintes qui n'ont pas d'équivalent direct ailleurs.
-Trois concepts suffisent à poser les bases.
+La pratique actuarielle standard ne modélise presque jamais directement "le coût d'un
+sinistre" en un seul modèle. Elle sépare le problème en deux : la fréquence, la probabilité ou
+le nombre attendu de sinistres sur une période donnée, généralement modélisée par une
+régression de Poisson ; et la sévérité, le coût moyen d'un sinistre sachant qu'il a eu lieu,
+modélisée par une régression Gamma. La prime pure — le coût de risque théorique, avant frais et
+marge — s'obtient en combinant les deux : `prime_pure = frequence × severite`.
 
-## Fréquence et sévérité, pas un score unique
+Séparer les deux composantes permet de comprendre si une hausse de coût vient d'un risque plus
+fréquent ou d'un risque plus coûteux par sinistre, une distinction que perd un modèle unique
+entraîné directement sur le coût total.
 
-La pratique actuarielle standard ne modélise (presque) jamais directement "le coût d'un
-sinistre" en un seul modèle. Elle sépare le problème en deux :
+## L'exposition comme offset, pas comme variable
 
-- **Fréquence** — la probabilité (ou le nombre attendu) de sinistres sur une période donnée,
-  modélisée typiquement par une régression de Poisson.
-- **Sévérité** — le coût moyen d'un sinistre, sachant qu'il a eu lieu, modélisé par une
-  régression Gamma.
-
-La **prime pure** (le coût de risque théorique, avant frais et marge) s'obtient en combinant
-les deux : `prime_pure = frequence × severite`. Séparer les deux composantes permet de
-comprendre si une hausse de coût vient d'un risque plus fréquent ou d'un risque plus coûteux
-par sinistre — une distinction que perd un modèle unique entraîné directement sur le coût
-total.
-
-## L'exposition comme offset, pas comme feature
-
-Un contrat observé 3 mois et un contrat observé 12 mois ne doivent pas être traités comme des
-observations comparables sans ajustement. En modélisation de fréquence, l'exposition s'intègre
-comme un *offset* dans le modèle, pas comme une variable explicative classique :
+Un contrat observé 3 mois et un contrat observé 12 mois ne sont pas des observations
+comparables sans ajustement. En modélisation de fréquence, l'exposition s'intègre comme un
+*offset* dans le modèle :
 
 ```python
 import statsmodels.api as sm
@@ -44,15 +35,13 @@ modele = smf.glm(
 ).fit()
 ```
 
-L'offset force le modèle à prédire un *taux* de sinistres par unité d'exposition, plutôt qu'un
+L'offset force le modèle à prédire un taux de sinistres par unité d'exposition, plutôt qu'un
 comptage brut biaisé par la durée d'observation.
 
-## Pourquoi le Machine Learning ne remplace pas ces concepts
-
-Un modèle de gradient boosting peut très bien prédire un score de risque avec de bonnes
-performances brutes, mais s'il ignore la séparation fréquence/sévérité et le traitement correct
-de l'exposition, il reproduit implicitement les mêmes biais qu'un modèle statistique mal
-spécifié — juste avec moins de visibilité sur pourquoi. Les techniques de Machine Learning
-apportent un vrai gain en risque assurantiel, mais en complément de ces fondations actuarielles,
-pas en remplacement : un XGBoost entraîné sur une fréquence déjà correctement normalisée par
+Un point que je vois souvent sous-estimé : un modèle de gradient boosting peut afficher de très
+bonnes performances brutes tout en ignorant la séparation fréquence/sévérité et le traitement
+correct de l'exposition — auquel cas il reproduit implicitement les mêmes biais qu'un modèle
+statistique mal spécifié, juste avec moins de visibilité sur la raison. Le Machine Learning
+apporte un vrai gain en risque assurantiel, mais en complément de ces fondations actuarielles,
+pas à leur place. Un XGBoost entraîné sur une fréquence déjà correctement normalisée par
 l'exposition surpasse largement le même modèle entraîné sur des comptages bruts.

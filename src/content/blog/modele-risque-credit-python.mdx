@@ -1,32 +1,26 @@
 ---
 title: "Modèle de risque de crédit en Python : guide pratique"
-description: "Construire un scoring de risque de bout en bout, des données brutes à la validation métier."
+description: "Construire un scoring de risque de bout en bout, des données brutes à la validation métier, avec des contraintes que les tutoriels ignorent en général."
 pillar: "risk-modeling"
 entryNumber: 2
 publishDate: 2026-08-24
 ---
 
-La modélisation du risque de crédit est un des rares domaines où le Machine Learning doit
-composer avec des contraintes que la plupart des tutoriels ignorent : l'explicabilité,
-la conformité réglementaire, et la stabilité du modèle dans le temps priment souvent sur
-la performance brute.
+La modélisation du risque de crédit doit composer avec des contraintes que la plupart des
+tutoriels de Machine Learning ignorent complètement : l'explicabilité, la conformité
+réglementaire et la stabilité du modèle dans le temps priment souvent sur la performance
+brute.
 
-## Ce qui distingue un modèle de risque d'un modèle "classique"
-
-Un modèle de classification standard optimise une métrique comme l'AUC. Un modèle de risque
-de crédit doit en plus :
-
-- Rester **interprétable** pour les équipes métier et les régulateurs
-- Être **stable** — un score qui change radicalement d'un mois à l'autre pour un profil
-  similaire est un signal d'alerte, pas une amélioration
-- Gérer des **données déséquilibrées** (les défauts de paiement restent rares)
-
-## Une approche pragmatique
+Un modèle de classification standard optimise une métrique comme l'AUC et s'arrête là. Un
+modèle de risque de crédit doit en plus rester interprétable pour les équipes métier et les
+régulateurs, rester stable — un score qui change radicalement d'un mois à l'autre pour un
+profil similaire est un signal d'alerte, pas une amélioration — et gérer des données
+déséquilibrées, les défauts de paiement restant rares dans l'absolu.
 
 Beaucoup d'équipes commencent encore par une régression logistique sur des variables
-discrétisées (*binning*), avant de tester des modèles plus complexes comme XGBoost. Ce n'est
-pas de la prudence excessive : c'est souvent le meilleur compromis performance/explicabilité
-disponible.
+discrétisées, avant de tester des modèles plus complexes comme XGBoost. Ce n'est pas de la
+prudence excessive, c'est souvent le meilleur compromis performance/explicabilité disponible
+à ce stade :
 
 ```python
 from sklearn.linear_model import LogisticRegression
@@ -38,15 +32,13 @@ model.fit(X_train_binned, y_train)
 auc = roc_auc_score(y_test, model.predict_proba(X_test_binned)[:, 1])
 ```
 
-## Validation : au-delà de l'AUC
-
 Une AUC élevée sur un jeu de test ne garantit rien sur la stabilité du modèle en production.
-Deux vérifications supplémentaires sont essentielles :
+Deux vérifications supplémentaires comptent au moins autant : le Population Stability Index,
+qui mesure si la distribution des scores dérive dans le temps par rapport à la population
+d'entraînement, et l'analyse par segment, parce qu'un modèle globalement bon peut être très
+mauvais sur un sous-groupe précis — jeunes emprunteurs, nouveaux clients.
 
-1. **Population Stability Index (PSI)** — mesure si la distribution des scores dérive dans
-   le temps par rapport à la population d'entraînement.
-2. **Analyse par segment** — un modèle globalement bon peut être très mauvais sur un
-   sous-groupe spécifique (jeunes emprunteurs, nouveaux clients, etc.).
-
-Le Machine Learning apporte un vrai gain de performance sur le scoring de risque, mais
-seulement s'il est encadré avec la même rigueur que les méthodes actuarielles classiques.
+Le Machine Learning apporte un vrai gain de performance sur le scoring de risque. Mais
+seulement s'il est encadré avec la même rigueur que les méthodes actuarielles classiques —
+sinon, le gain de performance sur le papier se paie en instabilité une fois le modèle
+déployé.

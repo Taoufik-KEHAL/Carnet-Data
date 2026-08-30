@@ -1,54 +1,47 @@
 ---
 title: "Feature engineering pour données assurantielles"
-description: "Transformer des données de contrats et de sinistres brutes en variables prédictives — et éviter les pièges spécifiques à l'assurance."
+description: "En assurance, chaque ligne n'est pas une observation isolée mais un contrat exposé au risque pendant une durée variable — ignorer ça fausse tout."
 pillar: "risk-modeling"
 entryNumber: 6
 publishDate: 2026-09-03
 ---
 
-Les données assurantielles ont une particularité que peu de tutoriels de Machine Learning
-abordent : chaque ligne n'est pas une observation isolée, mais un contrat exposé au risque
-pendant une durée variable. Ignorer cette exposition fausse la plupart des features qu'on en
-tire naïvement.
+Sur un premier projet assurance, j'ai vu quelqu'un construire un modèle directement sur des
+comptages bruts de sinistres, sans se poser la question de la durée d'exposition de chaque
+contrat. Résultat : le modèle apprenait surtout à distinguer les contrats anciens des
+nouveaux, pas les profils réellement à risque. C'est le piège numéro un du feature engineering
+en assurance.
 
-## L'exposition, la variable qu'on oublie
+## L'exposition d'abord
 
-Un contrat souscrit pour 3 mois et un contrat souscrit pour 12 mois n'ont pas la même
-probabilité d'avoir un sinistre, toutes choses égales par ailleurs. La feature de base en
-assurance n'est donc pas "nombre de sinistres" mais **fréquence de sinistres par unité
-d'exposition** :
+Un contrat de 3 mois et un contrat de 12 mois n'ont pas la même probabilité d'avoir un sinistre,
+toutes choses égales par ailleurs. La feature de base n'est donc pas "nombre de sinistres" mais
+la fréquence rapportée à l'exposition :
 
 ```python
 df["frequence"] = df["nb_sinistres"] / df["exposition_annees"]
 df["cout_moyen"] = df["montant_sinistres"] / df["nb_sinistres"].replace(0, pd.NA)
 ```
 
-Construire un modèle sur des comptages bruts sans normaliser par l'exposition revient à
-comparer des profils qui n'ont pas été observés pendant la même durée.
+Sans cette normalisation, comparer deux profils revient à comparer des observations qui n'ont
+tout simplement pas été suivies pendant la même durée.
 
-## Variables temporelles et d'ancienneté
+## L'ancienneté compte souvent plus que le déclaratif
 
-L'ancienneté du contrat et l'historique du client sont souvent plus prédictifs que les
-caractéristiques déclaratives initiales :
+Trois variables reviennent presque systématiquement comme prédictives, plus que les
+caractéristiques déclarées à la souscription : l'ancienneté du contrat, l'historique de
+sinistralité glissant sur 12 ou 36 mois plutôt qu'un cumul total, et le délai depuis le dernier
+sinistre.
 
-- **Ancienneté du contrat** — un nouveau client a statistiquement un profil de risque moins
-  stable qu'un client fidèle depuis plusieurs années.
-- **Historique de sinistralité glissant** — nombre de sinistres sur les 12 ou 36 derniers mois,
-  plus informatif qu'un cumul depuis la souscription.
-- **Délai depuis le dernier sinistre** — un proxy de risque à court terme utilisé en
-  tarification automobile notamment.
+## Encoder la géographie sans exploser la dimension
 
-## Encodage géographique et catégoriel
+Le code postal ou la zone de tarification ont une cardinalité élevée et une relation non
+linéaire avec le risque. Le one-hot encoding classique explose en dimension et dilue le signal
+par zone. Le target encoding — remplacer chaque catégorie par la fréquence moyenne observée sur
+le jeu d'entraînement, avec régularisation — donne de meilleurs résultats en pratique.
 
-Les zones géographiques (code postal, zone de tarification) ont une cardinalité élevée et une
-relation non linéaire avec le risque. Le *target encoding* (remplacer chaque catégorie par la
-fréquence de sinistre moyenne observée sur le jeu d'entraînement, avec régularisation) fonctionne
-mieux qu'un one-hot encoding classique, qui explose en dimension et dilue le signal par zone.
-
-## La contrainte que le Machine Learning classique ignore
-
-Certaines variables corrélées au risque — âge, sexe, origine géographique dans certains
-contextes réglementaires — sont interdites ou encadrées par la loi selon les branches
-d'assurance et les juridictions. Une feature techniquement prédictive n'est pas automatiquement
-utilisable : la validation d'un jeu de features en assurance passe autant par la conformité
-que par la performance statistique.
+Reste un point qu'aucun tutoriel de Machine Learning ne mentionne : certaines variables
+corrélées au risque (âge, sexe, parfois origine géographique) sont interdites ou encadrées par
+la loi selon les branches d'assurance et les juridictions. Une feature techniquement prédictive
+n'est pas automatiquement utilisable — la validation d'un jeu de features en assurance passe
+autant par le juridique que par la statistique.

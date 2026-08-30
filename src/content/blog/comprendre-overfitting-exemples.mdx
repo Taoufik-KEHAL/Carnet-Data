@@ -1,16 +1,10 @@
 ---
 title: "Comprendre le overfitting avec des exemples concrets"
-description: "Ce que le surapprentissage change réellement sur les prédictions — au-delà de la définition de manuel."
+description: "Une régression polynomiale suffit à rendre visible ce que 'le modèle overfitte' veut dire, sans passer par la définition de manuel."
 pillar: "ml-fondamentaux"
 entryNumber: 10
 publishDate: 2026-09-17
 ---
-
-"Le modèle overfitte" est souvent dit sans qu'on visualise vraiment ce que ça implique. Un
-exemple simple, avec une régression polynomiale, rend le phénomène concret plutôt
-qu'abstrait.
-
-## Un exemple minimal
 
 ```python
 import numpy as np
@@ -30,33 +24,24 @@ for degre in [1, 3, 15]:
     print(f"degré {degre} — train: {erreur_train:.3f}, test: {erreur_test:.3f}")
 ```
 
-Avec un degré 1, les deux erreurs sont proches mais élevées (sous-apprentissage). Avec un
-degré 15, l'erreur d'entraînement s'effondre presque à zéro — le modèle passe par quasiment
-tous les points d'entraînement — mais l'erreur de test explose. Le modèle n'a pas appris la
-tendance sous-jacente, il a mémorisé le bruit spécifique à l'échantillon d'entraînement.
+Avec un degré 1, les deux erreurs restent proches mais élevées — sous-apprentissage classique.
+Avec un degré 15, l'erreur d'entraînement s'effondre presque à zéro, le modèle passant par
+quasiment tous les points d'entraînement, pendant que l'erreur de test explose. Il n'a rien
+appris de la tendance sous-jacente, il a mémorisé le bruit propre à cet échantillon précis.
 
-## Le symptôme à surveiller
+Le signal le plus fiable n'est pas "l'erreur d'entraînement est basse", c'est l'écart entre
+erreur d'entraînement et erreur de test. Un petit écart avec une erreur de test acceptable est
+sain. Un grand écart, même avec une erreur de test correcte dans l'absolu, signale un modèle
+fragile qui va mal généraliser dès que les données réelles s'écartent un peu de celles vues à
+l'entraînement.
 
-Le signal le plus fiable d'overfitting n'est pas "le modèle a une erreur d'entraînement basse"
-— c'est **l'écart** entre erreur d'entraînement et erreur de test. Un petit écart avec une
-erreur de test acceptable est sain. Un grand écart, même si l'erreur de test reste correcte
-dans l'absolu, signale un modèle fragile qui généralisera mal à des données légèrement
-différentes de celles vues en entraînement.
+Trois causes reviennent le plus souvent en pratique : trop de paramètres pour trop peu de
+données (arbres profonds, réseaux larges, polynômes de haut degré qui s'ajustent au bruit sur
+un petit jeu de données), une fuite d'information où une feature est calculée à partir de
+données qui ne seraient pas disponibles au moment réel de la prédiction, et une validation
+croisée absente ou mal faite qui masque une variance que révélerait un k-fold.
 
-## Pourquoi ça arrive en pratique
-
-- **Trop de paramètres pour trop peu de données** — un modèle avec une grande capacité
-  (arbres profonds, réseaux de neurones larges, polynômes de haut degré) peut s'ajuster au
-  bruit si le jeu de données est petit.
-- **Fuite d'information (*data leakage*)** — une feature calculée à partir d'informations qui
-  ne seraient pas disponibles au moment de la prédiction réelle donne une performance test
-  artificiellement élevée, qui s'effondre en production.
-- **Validation croisée absente ou mal faite** — évaluer sur un seul split train/test peut
-  masquer une variance importante que la validation croisée (k-fold) révélerait.
-
-## Les leviers pour corriger
-
-Réduire la capacité du modèle (moins de profondeur, moins de features), ajouter de la
-régularisation (L1/L2, `max_depth` limité, *early stopping*), ou simplement collecter plus de
-données. Aucune de ces solutions n'est universelle : le bon réflexe est de toujours comparer
-erreur d'entraînement et erreur de validation avant de juger un modèle "performant".
+Les leviers de correction restent classiques : réduire la capacité du modèle, ajouter de la
+régularisation (L1/L2, profondeur limitée, early stopping), ou tout simplement récolter plus de
+données. Aucun n'est universel — le bon réflexe reste de toujours comparer erreur
+d'entraînement et erreur de validation avant de qualifier un modèle de "performant".

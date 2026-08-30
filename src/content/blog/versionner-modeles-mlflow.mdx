@@ -1,29 +1,25 @@
 ---
 title: "Comment versionner ses modèles de Machine Learning avec MLflow"
-description: "Suivre les expériences, comparer les runs et gérer le cycle de vie des modèles avec MLflow, sans y passer plus de temps qu'à l'entraînement lui-même."
+description: "Tracking, Model Registry, et la question qu'on se pose toujours trop tard : quel modèle tourne réellement en production ?"
 pillar: "mlops"
 entryNumber: 4
 publishDate: 2026-08-27
 ---
 
-"Quel notebook a produit ce modèle, avec quels hyperparamètres, sur quelle version des
-données ?" Si la réponse tient dans un nom de fichier du type `model_final_v2_bis.pkl`,
-il y a un problème. MLflow existe précisément pour éviter cette situation.
+Sur un projet de scoring crédit sur lequel j'ai travaillé, on avait fini par nommer les
+fichiers de modèles `model_v2_final_vraiment_final.pkl`. Ça faisait sourire jusqu'au jour où
+il a fallu expliquer à un auditeur quelle version avait produit une décision précise, six mois
+plus tôt. On n'avait pas la réponse. MLflow existe pour ce genre de moment.
 
-## Ce que MLflow versionne réellement
+## Trois outils, pas un seul
 
-MLflow n'est pas un seul outil mais trois composants qu'on peut adopter séparément :
+MLflow regroupe plusieurs composants qu'on peut adopter séparément. Tracking enregistre les
+paramètres, métriques et artefacts de chaque run d'entraînement dans une interface consultable.
+Model Registry centralise les versions d'un modèle et leur statut — `Staging`, `Production`,
+`Archived`. Projects packages un pipeline pour qu'il tourne à l'identique ailleurs. Dans la
+pratique, la plupart des équipes n'ont besoin que des deux premiers.
 
-- **Tracking** — enregistre les paramètres, métriques et artefacts de chaque run
-  d'entraînement, consultable dans une interface web.
-- **Model Registry** — centralise les versions d'un modèle donné et leur statut
-  (`Staging`, `Production`, `Archived`).
-- **Projects** — packages un pipeline d'entraînement pour qu'il soit reproductible sur une
-  autre machine, avec les mêmes dépendances.
-
-Pour la plupart des équipes, Tracking et Model Registry couvrent déjà 90 % du besoin.
-
-## Tracer un entraînement
+## À quoi ressemble un run tracé
 
 ```python
 import mlflow
@@ -37,13 +33,13 @@ with mlflow.start_run():
     mlflow.sklearn.log_model(model, "modele", registered_model_name="scoring-credit")
 ```
 
-Chaque run est horodaté et comparable aux précédents dans l'UI MLflow — plus besoin de
-tableur parallèle pour suivre les expériences.
+Une fois ça en place, comparer deux runs devient un simple filtre dans l'UI, plus un tableur
+partagé où chacun note ses essais à sa façon.
 
-## Faire passer un modèle en production
+## Passer un modèle en production sans redéployer le code
 
-Le Model Registry attribue une version numérique à chaque modèle enregistré et permet de
-changer son statut sans réentraîner :
+Le Registry attribue un numéro de version à chaque modèle enregistré et permet de changer son
+statut indépendamment du code qui l'appelle :
 
 ```python
 from mlflow import MlflowClient
@@ -54,13 +50,9 @@ client.transition_model_version_stage(
 )
 ```
 
-Le code qui consomme le modèle peut alors toujours pointer vers `models:/scoring-credit/Production`
-plutôt que vers un numéro de version codé en dur — la bascule d'une version à l'autre se fait
-côté registre, sans redéploiement du code appelant.
+Le service qui consomme le modèle pointe vers `models:/scoring-credit/Production` en
+permanence — la bascule se fait côté registre, sans toucher au code appelant.
 
-## Ce que MLflow ne résout pas
-
-MLflow versionne les modèles et les expériences, pas les données. Pour savoir quel jeu de
-données a servi à un run donné, il faut soit logger un hash des données en paramètre, soit
-coupler MLflow à un outil dédié comme DVC. Sans ça, la traçabilité reste incomplète : on sait
-quel modèle est en production, mais pas nécessairement avec quelles données il a été entraîné.
+Ce que MLflow ne fait pas : versionner les données. On peut retrouver quel modèle tourne, mais
+pas forcément avec quelles données il a été entraîné, sauf à logger un hash en paramètre ou à
+coupler ça avec un outil comme DVC. C'est un trou qu'on découvre en général au pire moment.
