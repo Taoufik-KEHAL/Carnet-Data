@@ -20,7 +20,7 @@ Créez un fichier `.mdx` dans `src/content/blog/`, avec ce frontmatter :
 ---
 title: "Titre de l'article"
 description: "Une phrase de résumé (utilisée en SEO et en aperçu)"
-pillar: "mlops" # mlops | ml-fondamentaux | big-data-cloud | risk-modeling
+pillar: "mlops" # mlops | ml-fondamentaux | big-data-cloud | risk-modeling | data-analysis
 entryNumber: 4  # numéro d'entrée suivant, séquentiel
 publishDate: 2026-08-25
 ---

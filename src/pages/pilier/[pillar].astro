@@ -7,6 +7,7 @@ const pillarLabels: Record<string, string> = {
   'ml-fondamentaux': 'ML fondamentaux',
   'big-data-cloud': 'Big Data & Cloud',
   'risk-modeling': 'Risk modeling',
+  'data-analysis': 'Data Analysis',
 };
 
 export async function getStaticPaths() {
@@ -15,6 +16,7 @@ export async function getStaticPaths() {
     'ml-fondamentaux': 0,
     'big-data-cloud': 0,
     'risk-modeling': 0,
+    'data-analysis': 0,
   }).map((pillar) => ({ params: { pillar } }));
 }
 

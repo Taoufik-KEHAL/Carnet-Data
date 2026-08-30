@@ -6,7 +6,7 @@ const blog = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    pillar: z.enum(['mlops', 'ml-fondamentaux', 'big-data-cloud', 'risk-modeling']),
+    pillar: z.enum(['mlops', 'ml-fondamentaux', 'big-data-cloud', 'risk-modeling', 'data-analysis']),
     entryNumber: z.number(),
     publishDate: z.date(),
     updatedDate: z.date().optional(),
