@@ -6,12 +6,17 @@ export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return posts.map((post) => ({
     params: { slug: post.id },
-    props: { post },
+    props: { post, allPosts: posts },
   }));
 }
 
-const { post } = Astro.props;
+const { post, allPosts } = Astro.props;
 const { Content } = await render(post);
+
+const relatedPosts = allPosts
+  .filter((p) => p.data.pillar === post.data.pillar && p.id !== post.id)
+  .sort((a, b) => b.data.entryNumber - a.data.entryNumber)
+  .slice(0, 3);
 ---
 <PostLayout
   title={post.data.title}
@@ -19,6 +24,7 @@ const { Content } = await render(post);
   entryNumber={post.data.entryNumber}
   pillar={post.data.pillar}
   publishDate={post.data.publishDate}
+  relatedPosts={relatedPosts}
 >
   <Content />
 </PostLayout>

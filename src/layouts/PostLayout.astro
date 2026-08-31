@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import AdSlot from '../components/AdSlot.astro';
+import type { CollectionEntry } from 'astro:content';
 
 interface Props {
   title: string;
@@ -8,8 +9,9 @@ interface Props {
   entryNumber: number;
   pillar: string;
   publishDate: Date;
+  relatedPosts?: CollectionEntry<'blog'>[];
 }
-const { title, description, entryNumber, pillar, publishDate } = Astro.props;
+const { title, description, entryNumber, pillar, publishDate, relatedPosts = [] } = Astro.props;
 
 const pillarLabels: Record<string, string> = {
   'mlops': 'MLOps',
@@ -21,17 +23,46 @@ const pillarLabels: Record<string, string> = {
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(publishDate);
 const stamp = `#${String(entryNumber).padStart(3, '0')}`;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImageURL = new URL('/og-image.png', Astro.site);
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: title,
+  description,
+  datePublished: publishDate.toISOString(),
+  url: canonicalURL.toString(),
+  image: ogImageURL.toString(),
+  author: { '@type': 'Person', name: 'Taoufik KEHAL' },
+  publisher: { '@type': 'Organization', name: 'Carnet Data' },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalURL.toString() },
+};
 ---
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} ogType="article" publishedTime={publishDate}>
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   <article>
     <p class="eyebrow">{stamp} · {pillarLabels[pillar] ?? pillar} · {dateFmt}</p>
     <h1>{title}</h1>
     <p class="dek">{description}</p>
-    <AdSlot label="Publicité" />
+    <AdSlot />
     <div class="prose">
       <slot />
     </div>
-    <AdSlot label="Publicité" />
+    <AdSlot />
+
+    {relatedPosts.length > 0 && (
+      <aside class="related">
+        <p class="eyebrow">Dans le même pilier</p>
+        <ul>
+          {relatedPosts.map((p) => (
+            <li>
+              <a href={`/blog/${p.id}/`}>{p.data.title}</a>
+            </li>
+          ))}
+        </ul>
+      </aside>
+    )}
   </article>
 </BaseLayout>
 
@@ -46,4 +77,22 @@ const stamp = `#${String(entryNumber).padStart(3, '0')}`;
   .prose :global(h2) { margin-top: 2em; }
   .prose :global(ul), .prose :global(ol) { padding-left: 1.3em; }
   .prose :global(li) { margin-bottom: 0.5em; }
+
+  .related {
+    margin-top: 3em;
+    padding-top: 1.5em;
+    border-top: 1px solid var(--paper-line);
+  }
+  .related ul {
+    list-style: none;
+    padding: 0;
+    margin: 0.8em 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .related a {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+  }
 </style>

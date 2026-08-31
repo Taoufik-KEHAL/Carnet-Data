@@ -1,26 +1,32 @@
 ---
-// Placeholder ad slot. Swap the inner comment for your AdSense/Ezoic <ins>/<script> unit once approved.
-// Keeping ad markup in one component means enabling monetization later is a one-file change.
+// Houses a "stay updated" module until AdSense/Ezoic is approved. Once approved, replace the
+// inner markup with the ad network's <ins>/<script> unit — this stays the one file to touch.
 interface Props {
   label?: string;
 }
-const { label = 'Publicité' } = Astro.props;
+const { label = 'Rester informé' } = Astro.props;
 ---
 <div class="ad-slot" role="complementary" aria-label={label}>
   <span class="ad-slot__tag">{label}</span>
-  <!-- AdSense/Ezoic unit goes here -->
+  <div class="ad-slot__links">
+    <a href="/rss.xml">S'abonner par RSS</a>
+    <span aria-hidden="true">·</span>
+    <a href="https://linkedin.com" target="_blank" rel="noopener">Suivre sur LinkedIn</a>
+  </div>
 </div>
 
 <style>
   .ad-slot {
     margin: 2.5em 0;
-    padding: 14px;
-    border: 1px dashed var(--paper-line);
+    padding: 16px 20px;
+    border: 1px solid var(--paper-line);
     border-radius: var(--radius);
     min-height: 90px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 10px;
     background: var(--card);
   }
   .ad-slot__tag {
@@ -28,6 +34,13 @@ const { label = 'Publicité' } = Astro.props;
     font-size: 0.7rem;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--red);
+  }
+  .ad-slot__links {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .ad-slot__links a {
+    color: var(--teal);
   }
 </style>
