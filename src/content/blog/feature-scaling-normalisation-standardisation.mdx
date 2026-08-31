@@ -1,0 +1,70 @@
+---
+title: "Feature scaling : normalisation vs standardisation, quand utiliser quoi"
+description: "Deux transformations qu'on confond souvent, avec des effets différents selon la présence de valeurs aberrantes et le modèle utilisé en aval."
+pillar: "ml-fondamentaux"
+entryNumber: 52
+publishDate: 2025-11-26
+---
+
+Beaucoup de modèles sont sensibles à l'échelle des variables — pas parce qu'ils sont mal conçus,
+mais parce que leur mathématique sous-jacente traite littéralement les grands nombres comme
+plus importants, indépendamment de leur pertinence réelle.
+
+## Standardisation : centrer et réduire
+
+```python
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+X_standardise = scaler.fit_transform(X)  # moyenne 0, écart-type 1
+```
+
+La standardisation transforme chaque variable pour qu'elle ait une moyenne de 0 et un
+écart-type de 1. C'est le choix par défaut pour la plupart des modèles linéaires, la régression
+logistique régularisée, et les réseaux de neurones.
+
+## Normalisation min-max : ramener sur une échelle fixe
+
+```python
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+X_normalise = scaler.fit_transform(X)  # toutes les valeurs entre 0 et 1
+```
+
+La normalisation min-max ramène chaque variable dans un intervalle fixe, typiquement [0, 1].
+Utile quand l'algorithme suppose des valeurs bornées (certains réseaux de neurones avec des
+fonctions d'activation spécifiques), mais très sensible aux valeurs aberrantes — un seul point
+extrême écrase l'échelle de toutes les autres observations.
+
+## Le vrai critère de choix
+
+Standardisation et normalisation ne répondent pas à la même question. Face à des valeurs
+aberrantes, la standardisation reste plus robuste (une valeur extrême déplace la moyenne et
+l'écart-type, mais dans une moindre mesure que sur une échelle min-max). Sans valeurs
+aberrantes et avec un besoin d'échelle strictement bornée, la normalisation min-max convient
+tout aussi bien.
+
+## Les modèles qui n'en ont pas besoin
+
+Les modèles à base d'arbres — Random Forest, XGBoost, arbres de décision — sont insensibles à
+l'échelle des variables : ils ne comparent jamais directement deux variables entre elles, mais
+cherchent des seuils de coupure sur chacune indépendamment. Appliquer un scaling avant un
+XGBoost n'est pas une erreur, mais n'apporte strictement aucun gain de performance —
+contrairement à une régression logistique ou un k-means, où l'omettre fausse concrètement le
+résultat.
+
+## Le piège classique : fit sur tout le jeu de données
+
+```python
+# À éviter : fuite d'information du jeu de test
+scaler.fit(X)
+
+# Correct : le scaler apprend uniquement sur l'entraînement
+scaler.fit(X_train)
+X_test_transforme = scaler.transform(X_test)
+```
+
+Ajuster le scaler sur l'ensemble des données avant de séparer train et test fait fuiter des
+statistiques du jeu de test vers l'entraînement — une variante discrète du même problème de
+fuite de données qu'on retrouve en validation croisée mal appliquée.

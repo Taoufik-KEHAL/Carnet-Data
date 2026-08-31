@@ -1,0 +1,66 @@
+---
+title: "Early stopping : éviter l'overfitting pendant l'entraînement"
+description: "Plutôt que de fixer un nombre fixe d'itérations à l'avance, arrêter l'entraînement au bon moment se décide en observant le modèle apprendre en temps réel."
+pillar: "ml-fondamentaux"
+entryNumber: 77
+publishDate: 2026-05-07
+---
+
+Entraîner un modèle plus longtemps ne l'améliore pas indéfiniment. Passé un certain point,
+l'erreur d'entraînement continue de baisser pendant que l'erreur de validation recommence à
+monter — le modèle mémorise le bruit du jeu d'entraînement plutôt que d'apprendre la tendance
+générale. L'early stopping consiste à arrêter précisément avant ce point de bascule.
+
+## Le principe
+
+```python
+from xgboost import XGBClassifier
+
+modele = XGBClassifier(n_estimators=1000, early_stopping_rounds=20)
+modele.fit(
+    X_train, y_train,
+    eval_set=[(X_val, y_val)],
+    verbose=False,
+)
+print(f"Arrêt à l'itération {modele.best_iteration}")
+```
+
+L'entraînement continue tant que la performance sur le jeu de validation s'améliore. Si elle ne
+s'améliore plus pendant `early_stopping_rounds` itérations consécutives, l'entraînement s'arrête
+et conserve le modèle au meilleur point observé, pas au dernier.
+
+## Pourquoi pas simplement fixer un nombre d'itérations à l'avance
+
+Le nombre optimal d'itérations dépend du jeu de données, du taux d'apprentissage, et
+d'interactions complexes entre hyperparamètres — le deviner à l'avance sans observer
+l'entraînement produit soit un sous-apprentissage (trop peu d'itérations), soit un
+surapprentissage (trop). L'early stopping laisse les données elles-mêmes déterminer le bon
+arrêt.
+
+## Un usage courant en deep learning aussi
+
+```python
+from tensorflow.keras.callbacks import EarlyStopping
+
+callback = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+modele.fit(X_train, y_train, validation_data=(X_val, y_val), callbacks=[callback], epochs=200)
+```
+
+`restore_best_weights=True` garantit que les poids conservés à la fin sont ceux du meilleur
+point observé sur la validation, pas ceux de la dernière epoch avant l'arrêt — un détail
+important, souvent oublié, qui change complètement l'intérêt de la technique.
+
+## Le paramètre de patience, un vrai compromis
+
+Une patience trop faible arrête l'entraînement dès une fluctuation normale et temporaire de la
+performance de validation, avant d'avoir atteint le vrai optimum. Une patience trop élevée
+laisse l'entraînement continuer bien après le point optimal, gaspillant du temps de calcul sans
+bénéfice, voire en laissant le surapprentissage s'installer avant l'arrêt effectif.
+
+## Ce que l'early stopping ne remplace pas
+
+C'est une protection contre le surapprentissage lié à la durée d'entraînement, pas contre celui
+lié à la capacité du modèle lui-même (trop de paramètres pour le volume de données) ni à un jeu
+de validation qui ne serait pas représentatif du cas d'usage réel — un jeu de validation mal
+construit rend l'early stopping tout aussi trompeur que n'importe quelle autre méthode de
+validation.

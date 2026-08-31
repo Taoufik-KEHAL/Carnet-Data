@@ -1,0 +1,61 @@
+---
+title: "Introduction aux modèles de langage (LLM) pour data scientists"
+description: "Un data scientist venant du Machine Learning classique doit désapprendre un réflexe : un LLM ne s'entraîne presque jamais depuis zéro sur son propre cas d'usage."
+pillar: "ml-fondamentaux"
+entryNumber: 67
+publishDate: 2026-03-03
+---
+
+Passer d'un modèle de scoring classique à un projet impliquant un LLM change une bonne partie
+des réflexes habituels — le modèle n'est plus entraîné sur des données propriétaires depuis
+zéro, il est déjà entraîné, et le travail consiste à l'adapter ou à l'orchestrer.
+
+## Trois façons d'utiliser un LLM, par ordre de complexité croissante
+
+Le prompt engineering consiste à formuler une instruction suffisamment précise pour obtenir le
+comportement voulu, sans toucher au modèle lui-même :
+
+```python
+prompt = """
+Classe le sentiment de cet avis client en positif, négatif ou neutre.
+Réponds uniquement par un de ces trois mots.
+
+Avis : {avis}
+"""
+```
+
+Le RAG (*Retrieval-Augmented Generation*) enrichit le prompt avec des informations récupérées
+dynamiquement, pour répondre à partir de documents spécifiques que le modèle n'a jamais vus à
+l'entraînement :
+
+```python
+documents_pertinents = recherche_vectorielle(question, base_documentaire)
+prompt = f"Contexte : {documents_pertinents}\n\nQuestion : {question}"
+```
+
+Le fine-tuning ajuste les poids du modèle sur un jeu de données spécifique — la méthode la plus
+coûteuse, à réserver aux cas où le prompt engineering et le RAG ne suffisent vraiment pas.
+
+## Pourquoi le RAG est devenu l'approche par défaut
+
+Fine-tuner un modèle pour lui "apprendre" des faits nouveaux est rarement le bon outil — un LLM
+fine-tuné peut toujours halluciner ces faits de façon plausible mais fausse. Le RAG contourne le
+problème en fournissant l'information factuelle directement dans le contexte au moment de la
+génération, ce qui permet aussi de mettre à jour la base de connaissances sans jamais retoucher
+au modèle.
+
+## L'évaluation, plus difficile que pour un modèle classique
+
+Une prédiction de classification a une réponse correcte vérifiable. Un texte généré par un LLM
+n'a souvent pas de réponse unique correcte — évaluer la qualité demande des métriques
+spécifiques (similarité sémantique, cohérence factuelle vérifiée contre les sources) ou,
+fréquemment, un autre LLM utilisé comme juge, avec toutes les limites de fiabilité que ça
+implique.
+
+## Le risque qu'on sous-estime le plus
+
+Un LLM produit du texte grammaticalement correct et confiant même quand il invente une
+information — l'hallucination n'a pas de signal d'alerte visible dans le texte généré lui-même.
+Sans mécanisme de vérification externe (RAG avec sources citées, validation humaine sur les cas
+sensibles), un système basé sur un LLM peut produire des erreurs bien plus difficiles à détecter
+qu'une prédiction numérique clairement hors de la plage attendue.

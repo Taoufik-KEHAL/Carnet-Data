@@ -1,0 +1,66 @@
+---
+title: "Gérer les dépendances Python de façon reproductible (poetry, uv, lockfiles)"
+description: "\"Ça marche sur ma machine\" est souvent, très concrètement, un problème de versions de dépendances non figées quelque part entre le poste du développeur et l'environnement de production."
+pillar: "mlops"
+entryNumber: 71
+publishDate: 2026-03-29
+---
+
+Un simple `pip install -r requirements.txt` avec des versions non fixées (`scikit-learn` sans
+numéro précis) peut installer des versions différentes selon le jour, silencieusement, et changer
+le comportement d'un modèle sans qu'aucune ligne de code n'ait changé.
+
+## Le problème du requirements.txt non verrouillé
+
+```
+# Fragile : la version résolue dépend du moment de l'installation
+scikit-learn
+pandas
+
+# Mieux, mais pas suffisant pour les dépendances transitives
+scikit-learn==1.4.0
+pandas==2.1.0
+```
+
+Même en fixant les versions directes, les dépendances de ces librairies (leurs propres
+dépendances, dites transitives) peuvent varier si elles ne sont pas fixées aussi. Un vrai
+lockfile règle ce problème en figeant l'arbre complet des dépendances, pas seulement le premier
+niveau.
+
+## Poetry : gestion de dépendances et packaging unifiés
+
+```bash
+poetry add scikit-learn pandas
+poetry lock       # génère un poetry.lock avec l'arbre complet figé
+poetry install    # installe exactement les versions du lockfile
+```
+
+Le fichier `poetry.lock` versionné garantit que chaque installation, sur n'importe quelle
+machine, obtient exactement le même arbre de dépendances.
+
+## uv : la même idée, en beaucoup plus rapide
+
+```bash
+uv add scikit-learn pandas
+uv sync   # installe depuis le lockfile, très rapidement
+```
+
+uv reprend une approche similaire à Poetry mais écrite en Rust, avec des temps d'installation
+souvent plusieurs fois plus rapides — un vrai gain sur des pipelines CI/CD qui réinstallent les
+dépendances à chaque exécution.
+
+## Pourquoi ça compte plus en Data Science qu'ailleurs
+
+Une mise à jour mineure de scikit-learn ou de numpy peut changer le comportement numérique d'un
+algorithme (l'implémentation d'un solveur, l'ordre des opérations en virgule flottante) de façon
+suffisamment subtile pour passer inaperçue en test, mais suffisante pour légèrement modifier des
+prédictions en production. Un lockfile garantit que le modèle tourne dans un environnement
+identique à celui où il a été validé, ce qui élimine cette classe entière de bugs difficiles à
+diagnostiquer.
+
+## Le réflexe à adopter
+
+Committer le lockfile (`poetry.lock` ou équivalent) dans le dépôt Git, au même titre que le code
+— jamais l'ignorer via `.gitignore` par erreur, comme on le fait parfois par réflexe pour des
+fichiers générés. C'est précisément ce fichier qui garantit la reproductibilité d'un
+environnement, pas le fichier de dépendances déclaratif seul.

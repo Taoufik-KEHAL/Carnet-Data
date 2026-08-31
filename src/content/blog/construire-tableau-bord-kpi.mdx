@@ -1,0 +1,56 @@
+---
+title: "Construire un tableau de bord KPI qui sert vraiment à la décision"
+description: "Un tableau de bord avec quarante indicateurs consultés une fois par trimestre a moins de valeur qu'un tableau de bord avec trois indicateurs consultés chaque semaine."
+pillar: "data-analysis"
+entryNumber: 80
+publishDate: 2026-05-26
+---
+
+La tentation naturelle en construisant un tableau de bord est d'y mettre tout ce qui peut se
+mesurer. Le résultat, presque toujours, est un tableau que personne ne consulte régulièrement
+parce qu'il n'aide à répondre à aucune question précise.
+
+## Partir de la décision, pas de la donnée disponible
+
+La bonne question n'est pas "quelles données avons-nous" mais "quelle décision ce tableau doit-il
+permettre de prendre, et à quelle fréquence". Un tableau de bord pour un comité mensuel n'a pas
+besoin des mêmes indicateurs, ni de la même granularité temporelle, qu'un tableau de suivi
+opérationnel quotidien.
+
+## La règle des trois niveaux
+
+- **Indicateurs de résultat** (*lagging*) — chiffre d'affaires, taux de churn : mesurent un
+  résultat déjà arrivé, utiles pour évaluer mais pas pour agir à temps.
+- **Indicateurs avancés** (*leading*) — taux d'engagement, volume de leads qualifiés : prédisent
+  une tendance avant qu'elle ne se matérialise pleinement dans le résultat final.
+- **Indicateurs de diagnostic** — ceux qu'on consulte seulement quand un indicateur de résultat
+  ou avancé montre un problème, pour comprendre pourquoi.
+
+Un bon tableau de bord met en avant les deux premiers niveaux, et garde le troisième accessible
+mais pas au premier plan.
+
+## La cohérence des définitions, un piège sous-estimé
+
+```sql
+-- "Utilisateur actif" doit avoir UNE seule définition dans toute l'organisation
+SELECT COUNT(DISTINCT user_id)
+FROM evenements
+WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+  AND type_evenement IN ('connexion', 'action_cle');
+```
+
+Deux tableaux de bord qui définissent "utilisateur actif" différemment (30 jours vs 7 jours,
+avec ou sans certains types d'événements) produisent des chiffres qui ne se recoupent jamais,
+et minent la confiance dans les données elles-mêmes dès que quelqu'un le remarque en réunion.
+
+## Limiter le nombre d'indicateurs mis en avant
+
+Un tableau de bord avec plus de cinq ou six indicateurs principaux disperse l'attention plutôt
+que de la concentrer. Les métriques secondaires ont leur place, mais dans une vue détaillée
+accessible en un clic, pas dans le premier écran que l'audience voit.
+
+## Le test final
+
+Un tableau de bord réussi permet à quelqu'un qui ne l'a jamais vu de comprendre, en quelques
+secondes, si la situation est bonne, mauvaise, ou en train de changer — sans commentaire oral
+nécessaire pour l'interpréter.

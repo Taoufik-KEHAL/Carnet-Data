@@ -1,0 +1,58 @@
+---
+title: "Interprétabilité des modèles avec SHAP"
+description: "SHAP répond à une question précise que l'importance des features classique ne peut pas résoudre : pourquoi CE client précis a-t-il reçu CETTE prédiction précise ?"
+pillar: "ml-fondamentaux"
+entryNumber: 82
+publishDate: 2026-06-08
+---
+
+L'importance des features d'un modèle (disponible nativement sur un Random Forest ou XGBoost)
+dit quelles variables comptent globalement, en moyenne sur tout le jeu de données. Elle ne dit
+rien sur une prédiction individuelle précise — pourquoi ce client a reçu un score de 720 plutôt
+que 650. SHAP comble ce manque.
+
+## Le principe, hérité de la théorie des jeux
+
+SHAP (*SHapley Additive exPlanations*) attribue à chaque variable une contribution à
+l'écart entre la prédiction moyenne du modèle et la prédiction pour un individu donné, en
+s'appuyant sur les valeurs de Shapley — une méthode qui répartit équitablement une contribution
+collective entre plusieurs participants, empruntée à la théorie des jeux coopératifs.
+
+```python
+import shap
+
+explainer = shap.TreeExplainer(modele)
+valeurs_shap = explainer.shap_values(X_test)
+
+shap.summary_plot(valeurs_shap, X_test)
+```
+
+Le graphique résultant montre, pour chaque variable, comment elle pousse les prédictions vers le
+haut ou vers le bas à travers l'ensemble du jeu de données — une vue plus riche qu'un simple
+classement d'importance.
+
+## Expliquer une prédiction individuelle
+
+```python
+shap.force_plot(explainer.expected_value, valeurs_shap[0], X_test.iloc[0])
+```
+
+Pour un client précis, ce graphique montre exactement quelles variables ont poussé sa
+prédiction au-dessus ou en dessous de la moyenne, et de combien — l'explication concrète
+qu'un scorecard traditionnel offre nativement, mais qu'un modèle boîte noire comme XGBoost ne
+donne pas sans cet outil.
+
+## Le coût de calcul, une vraie contrainte
+
+Calculer les valeurs SHAP exactes est coûteux en général, mais `TreeExplainer` exploite la
+structure des modèles à base d'arbres pour un calcul beaucoup plus rapide — un luxe qui n'existe
+pas pour tous les types de modèles. Sur des réseaux de neurones ou d'autres architectures, des
+approximations (`KernelExplainer`, `DeepExplainer`) sont nécessaires, avec un compromis entre
+précision et temps de calcul.
+
+## Ce que SHAP n'explique pas
+
+SHAP décrit comment le modèle est arrivé à sa prédiction, pas si cette prédiction est correcte
+ni si le modèle a appris une relation causale réelle. Un modèle biaisé produira des explications
+SHAP parfaitement cohérentes avec son propre biais — SHAP rend un modèle plus transparent, il ne
+garantit pas qu'il soit juste ou exact.

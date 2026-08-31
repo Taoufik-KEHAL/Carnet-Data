@@ -1,0 +1,71 @@
+---
+title: "Introduction à Terraform pour l'infrastructure de données"
+description: "Cliquer pour créer un bucket S3 ou un cluster dans une console cloud fonctionne, jusqu'au jour où il faut reproduire exactement la même configuration ailleurs."
+pillar: "big-data-cloud"
+entryNumber: 68
+publishDate: 2026-03-10
+---
+
+Terraform décrit l'infrastructure sous forme de code déclaratif plutôt que d'une suite de clics
+dans une console — le fichier de configuration devient la source de vérité, versionnable et
+relisable comme n'importe quel autre code.
+
+## Déclaratif, pas procédural
+
+```hcl
+resource "aws_s3_bucket" "data_lake" {
+  bucket = "carnet-data-lake"
+}
+
+resource "google_bigquery_dataset" "analytics" {
+  dataset_id = "analytics_prod"
+  location   = "EU"
+}
+```
+
+Le fichier décrit l'état final voulu, pas la séquence d'actions pour y arriver. Terraform compare
+cet état déclaré à l'état réel de l'infrastructure et calcule lui-même les actions nécessaires
+(créer, modifier, supprimer) pour les faire correspondre.
+
+## Le plan avant l'exécution, une sécurité importante
+
+```bash
+terraform plan   # montre ce qui va changer, sans rien appliquer
+terraform apply  # applique réellement les changements après confirmation
+```
+
+`terraform plan` affiche précisément ce qui sera créé, modifié ou détruit avant toute
+application réelle — une étape qui évite des surprises coûteuses, en particulier la suppression
+accidentelle d'une ressource encore utilisée.
+
+## Pourquoi ça compte particulièrement pour la donnée
+
+Reproduire un environnement de données à l'identique (staging vers production, ou un nouvel
+environnement de test) devient une simple exécution du même code Terraform avec des variables
+différentes, plutôt qu'une checklist manuelle sujette à l'oubli d'une étape :
+
+```hcl
+variable "environnement" {
+  default = "staging"
+}
+
+resource "google_bigquery_dataset" "analytics" {
+  dataset_id = "analytics_${var.environnement}"
+  location   = "EU"
+}
+```
+
+## Le state, la partie qui demande le plus d'attention
+
+Terraform maintient un fichier d'état qui associe sa configuration aux ressources réelles
+existantes. Ce fichier doit être partagé et verrouillé correctement au sein d'une équipe (via un
+backend distant comme S3 avec verrouillage DynamoDB, par exemple) — un state désynchronisé ou
+modifié en parallèle par deux personnes peut conduire Terraform à vouloir recréer ou supprimer
+des ressources qui existent déjà et fonctionnent normalement.
+
+## Ce que ça change pour une équipe data
+
+Au-delà de la reproductibilité, la revue de code s'applique désormais à l'infrastructure comme
+au reste : un changement de configuration d'un cluster ou d'un bucket passe par une pull request
+relue par un collègue, plutôt que par un changement silencieux effectué directement dans une
+console cloud, invisible pour le reste de l'équipe jusqu'à ce qu'il cause un problème.

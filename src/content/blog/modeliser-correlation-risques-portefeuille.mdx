@@ -1,0 +1,57 @@
+---
+title: "Modéliser la corrélation entre risques dans un portefeuille"
+description: "La perte totale d'un portefeuille ne se déduit pas en additionnant simplement les pertes attendues de chaque police — la corrélation entre risques change tout, surtout dans les scénarios extrêmes."
+pillar: "risk-modeling"
+entryNumber: 94
+publishDate: 2026-08-25
+---
+
+Traiter chaque police d'un portefeuille comme un risque indépendant simplifie énormément les
+calculs, mais sous-estime systématiquement le risque agrégé réel dès que des corrélations
+existent entre les polices — ce qui est presque toujours le cas en pratique.
+
+## Pourquoi l'indépendance est une hypothèse rarement vraie
+
+Un portefeuille de polices habitation concentrées dans une même région géographique n'est pas
+composé de risques indépendants face à une tempête ou une inondation — un seul événement affecte
+un grand nombre de polices simultanément. Supposer l'indépendance dans ce cas sous-estime
+gravement la probabilité d'une perte agrégée extrême.
+
+```python
+# Hypothèse d'indépendance : la variance du portefeuille se réduit avec le nombre de polices
+variance_portefeuille_independant = sum(variance_individuelle) / n
+
+# Avec corrélation positive : la réduction de variance est bien moindre,
+# le risque agrégé reste élevé même avec beaucoup de polices
+```
+
+## Les copules pour modéliser la structure de dépendance
+
+Les copules permettent de modéliser séparément la distribution marginale de chaque risque
+individuel et la structure de dépendance entre eux — utile en risque parce que la corrélation
+entre événements extrêmes est souvent plus forte que la corrélation moyenne mesurée sur
+l'ensemble de la distribution.
+
+```python
+from copulas.multivariate import GaussianMultivariate
+
+modele_copule = GaussianMultivariate()
+modele_copule.fit(donnees_sinistres_multi_branches)
+scenarios_simules = modele_copule.sample(10000)
+```
+
+## L'effet sur le capital réglementaire
+
+Solvabilité II impose explicitement de tenir compte des corrélations entre modules de risque
+dans le calcul du capital de solvabilité requis — un portefeuille dont les risques sont
+positivement corrélés nécessite plus de capital qu'un portefeuille équivalent en taille mais
+diversifié entre risques peu corrélés, précisément parce que le risque de perte agrégée extrême
+est structurellement plus élevé dans le premier cas.
+
+## Le piège de la corrélation qui augmente dans les scénarios extrêmes
+
+Beaucoup de risques semblent peu corrélés en conditions normales mais deviennent fortement
+corrélés lors d'événements extrêmes — une crise financière systémique affecte simultanément des
+classes d'actifs habituellement peu liées entre elles. Un modèle calibré uniquement sur des
+données de période calme sous-estime cette corrélation de queue, précisément dans les scénarios
+où elle compte le plus pour la solvabilité de l'assureur.

@@ -1,0 +1,63 @@
+---
+title: "Introduction à dbt pour transformer ses données"
+description: "dbt ne charge ni n'extrait aucune donnée — il fait une seule chose, transformer, et la fait avec une discipline logicielle que les scripts SQL ad hoc n'ont jamais eue."
+pillar: "big-data-cloud"
+entryNumber: 48
+publishDate: 2025-11-01
+---
+
+Un data warehouse rempli de vues SQL imbriquées, écrites par des personnes différentes sur
+plusieurs années, devient vite impossible à auditer : personne ne sait avec certitude quelle vue
+dépend de quelle autre, ni ce qui casse si on modifie une table source. dbt (data build tool)
+répond précisément à ce problème.
+
+## Le principe : du SQL, mais versionné et testé
+
+dbt organise les transformations en modèles — des fichiers `.sql` contenant une requête
+`SELECT`, que dbt matérialise en table ou en vue :
+
+```sql
+-- models/clients_actifs.sql
+SELECT
+    client_id,
+    MAX(date_derniere_commande) AS derniere_commande
+FROM {{ ref('commandes') }}
+GROUP BY client_id
+HAVING MAX(date_derniere_commande) > CURRENT_DATE - INTERVAL '90 days'
+```
+
+La fonction `ref()` déclare explicitement une dépendance entre modèles. dbt construit
+automatiquement le graphe de dépendances et exécute les transformations dans le bon ordre — plus
+besoin de deviner quelle vue doit être rafraîchie avant une autre.
+
+## Les tests, ce qui manque le plus aux pipelines SQL classiques
+
+```yaml
+# models/schema.yml
+models:
+  - name: clients_actifs
+    columns:
+      - name: client_id
+        tests:
+          - unique
+          - not_null
+```
+
+`dbt test` vérifie ces contraintes après chaque exécution. Une colonne censée être unique qui ne
+l'est plus plante le pipeline avant que le problème ne se propage silencieusement vers les
+tableaux de bord en aval.
+
+## La documentation générée automatiquement
+
+`dbt docs generate` produit un site documentant chaque modèle, ses colonnes, et le graphe de
+dépendances complet — un vrai gain pour une équipe qui grandit, où personne n'a plus une vue
+d'ensemble du pipeline dans sa tête.
+
+## Ce que dbt ne fait pas
+
+dbt ne se connecte pas aux sources de données, n'extrait rien, ne charge rien dans le warehouse
+— c'est un outil purement de transformation (le T de ELT), qui suppose que les données brutes
+sont déjà arrivées dans l'entrepôt par un autre moyen (Fivetran, Airbyte, un pipeline Airflow).
+Cette limite volontaire est aussi sa force : dbt fait une seule chose, mais la fait avec une
+discipline de génie logiciel — versionnement, tests, revue de code — que les scripts SQL
+éparpillés dans des notebooks n'ont jamais eue.

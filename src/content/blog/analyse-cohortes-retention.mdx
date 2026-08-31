@@ -1,0 +1,53 @@
+---
+title: "Analyse de cohortes pour mesurer la rétention"
+description: "Un taux de rétention global masque presque toujours des différences importantes entre les utilisateurs arrivés en janvier et ceux arrivés en juin."
+pillar: "data-analysis"
+entryNumber: 50
+publishDate: 2025-11-13
+---
+
+Regrouper des utilisateurs par date d'acquisition, plutôt que de les traiter comme un bloc
+unique, révèle des tendances qu'une métrique globale de rétention cache complètement.
+
+## Le principe
+
+Une cohorte regroupe les utilisateurs ayant démarré à la même période (souvent le même mois).
+On suit ensuite, pour chaque cohorte, le pourcentage d'utilisateurs encore actifs à chaque
+période suivante :
+
+```python
+import pandas as pd
+
+df['mois_acquisition'] = df.groupby('user_id')['date'].transform('min').dt.to_period('M')
+df['periode'] = (df['date'].dt.to_period('M') - df['mois_acquisition']).apply(lambda x: x.n)
+
+table_cohortes = df.pivot_table(
+    index='mois_acquisition', columns='periode', values='user_id', aggfunc='nunique'
+)
+taux_retention = table_cohortes.div(table_cohortes[0], axis=0)
+```
+
+Le résultat est une matrice triangulaire : chaque ligne est une cohorte, chaque colonne une
+période depuis l'acquisition, et chaque cellule le pourcentage d'utilisateurs encore actifs.
+
+## Ce qu'une métrique agrégée fait disparaître
+
+Un taux de rétention global à 30 jours de 40 % peut cacher une cohorte de janvier à 60 % et une
+cohorte de juin à 20 % — une dégradation réelle et récente que la moyenne dilue complètement.
+Sans découpage par cohorte, cette dégradation pourrait passer inaperçue pendant des mois.
+
+## Isoler l'effet d'un changement produit
+
+Comparer la courbe de rétention des cohortes avant et après le lancement d'une fonctionnalité
+donne une mesure directe de son impact sur la fidélisation — à condition de laisser suffisamment
+de temps à chaque cohorte pour atteindre les mêmes périodes de comparaison. Comparer une
+cohorte à 90 jours d'ancienneté à une cohorte qui n'a que 20 jours d'existence ne dit rien de
+fiable.
+
+## Le piège de la cohorte trop petite
+
+Une cohorte avec peu d'utilisateurs (un lancement en petit comité, une période creuse) produit
+des taux de rétention très instables, où un ou deux utilisateurs qui reviennent ou partent font
+varier le pourcentage de façon spectaculaire. Regarder le volume absolu d'utilisateurs derrière
+chaque pourcentage évite de sur-interpréter le bruit statistique d'une cohorte trop petite comme
+un signal réel.

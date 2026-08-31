@@ -1,0 +1,56 @@
+---
+title: "Réassurance : les bases pour un data scientist"
+description: "Un assureur qui porte seul un risque catastrophique majeur peut faire faillite sur un seul événement — la réassurance existe pour empêcher exactement ça."
+pillar: "risk-modeling"
+entryNumber: 54
+publishDate: 2025-12-09
+---
+
+La réassurance consiste, pour un assureur, à céder une partie du risque qu'il porte à un autre
+assureur (le réassureur), en échange d'une prime. C'est l'assurance de l'assureur — un concept
+simple, mais qui structure profondément la façon dont le risque est modélisé en amont.
+
+## Deux grandes familles de traités
+
+La réassurance proportionnelle répartit chaque sinistre selon un pourcentage fixé à l'avance :
+si l'assureur cède 30 % du risque, il cède aussi 30 % de la prime et 30 % de chaque sinistre. La
+réassurance non-proportionnelle (*excess of loss*) fonctionne différemment : le réassureur ne
+paie que la part d'un sinistre qui dépasse un seuil convenu (la *rétention*), typiquement pour
+les événements de grande ampleur.
+
+```
+Sinistre de 5M€, rétention à 2M€, réassurance excess of loss
+→ Assureur paie : 2M€
+→ Réassureur paie : 3M€
+```
+
+## Pourquoi ça change la façon de modéliser le risque
+
+Un modèle de risque conçu uniquement pour prédire la fréquence et la sévérité moyenne d'un
+portefeuille ne répond pas à la question qui intéresse un traité excess of loss : quelle est la
+probabilité qu'un sinistre, ou un cumul de sinistres sur un même événement, dépasse un seuil
+donné ? Cette question porte sur la queue de la distribution, pas sur sa moyenne — et demande
+des méthodes statistiques adaptées à ça, comme la théorie des valeurs extrêmes.
+
+```python
+from scipy.stats import genpareto
+
+# Modéliser la queue de distribution au-delà d'un seuil, plutôt que la distribution complète
+parametres = genpareto.fit(sinistres[sinistres > seuil] - seuil)
+```
+
+## Le cumul, la vraie difficulté
+
+Un tremblement de terre ou une tempête ne génère pas un sinistre isolé mais des milliers de
+sinistres corrélés sur une même zone géographique et au même moment. Modéliser cette corrélation
+spatiale et temporelle — pas seulement chaque police individuellement — conditionne directement
+le montant de réassurance dont un assureur a réellement besoin pour rester solvable après un
+événement extrême.
+
+## Ce qu'un data scientist apporte à ce sujet
+
+Les modèles catastrophiques (*cat models*), qui simulent des milliers de scénarios d'événements
+extrêmes sur un portefeuille géolocalisé, sont un terrain naturel pour des compétences de
+simulation et de modélisation spatiale — un domaine où le Machine Learning généraliste rencontre
+directement des méthodes actuarielles spécialisées, avec un vrai potentiel d'amélioration des
+modèles historiquement plus simples utilisés dans ce secteur.

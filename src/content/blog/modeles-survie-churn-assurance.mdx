@@ -1,0 +1,60 @@
+---
+title: "Modèles de survie pour la résiliation client (churn) en assurance"
+description: "Une classification binaire dit si un client va résilier ; un modèle de survie dit quand — et gère correctement les clients qui n'ont pas encore eu le temps de le faire."
+pillar: "risk-modeling"
+entryNumber: 59
+publishDate: 2026-01-11
+---
+
+Prédire la résiliation avec une classification binaire classique pose un problème silencieux :
+que faire des clients souscrits récemment, qui n'ont techniquement pas encore résilié, mais
+n'ont pas non plus eu le temps de le faire ? Les traiter comme des "non-résiliants" fausse le
+modèle. Les exclure du jeu d'entraînement perd de l'information. L'analyse de survie résout ce
+problème par construction.
+
+## La censure, le concept clé
+
+Un client qui n'a pas résilié au moment de l'extraction des données est dit *censuré* — on sait
+qu'il n'a pas résilié pendant la période observée, mais pas s'il résiliera plus tard. L'analyse
+de survie intègre explicitement cette incertitude, plutôt que de forcer une réponse binaire sur
+une information incomplète.
+
+```python
+from lifelines import KaplanMeierFitter
+
+kmf = KaplanMeierFitter()
+kmf.fit(duree_avant_evenement, event_observed=resiliation_observee)
+kmf.plot_survival_function()
+```
+
+La courbe de Kaplan-Meier estime la probabilité de rester client au-delà de chaque durée
+d'ancienneté, en tenant compte correctement des clients encore actifs (censurés) dans le
+calcul.
+
+## Le modèle de Cox pour intégrer des covariables
+
+```python
+from lifelines import CoxPHFitter
+
+cph = CoxPHFitter()
+cph.fit(df, duration_col="anciennete", event_col="resiliation")
+cph.print_summary()
+```
+
+Le modèle de Cox estime comment chaque variable (montant de la prime, nombre de sinistres,
+canal de souscription) modifie le risque de résiliation à un instant donné, sans supposer de
+forme particulière pour l'évolution du risque dans le temps.
+
+## Ce que ça change concrètement pour l'action commerciale
+
+Un modèle de survie ne dit pas seulement "ce client va résilier", il donne une estimation du
+moment probable — utile pour prioriser une relance juste avant l'échéance de résiliation la plus
+probable, plutôt que de cibler tous les clients à risque au même moment sans distinction de
+timing.
+
+## Le piège d'ignorer la censure
+
+Entraîner un classifieur binaire classique en traitant tous les clients non résiliés comme des
+"non-churners", y compris ceux souscrits la veille de l'extraction des données, introduit un
+biais qui pousse le modèle à sous-estimer le risque des profils récents — précisément ceux pour
+lesquels une action de fidélisation précoce a le plus de valeur.

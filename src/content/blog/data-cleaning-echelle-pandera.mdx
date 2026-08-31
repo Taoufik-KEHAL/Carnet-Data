@@ -1,0 +1,61 @@
+---
+title: "Data cleaning à l'échelle avec Great Expectations et pandera"
+description: "Valider un DataFrame pandas avec de simples assert dispersés dans le code fonctionne à petite échelle, jusqu'à ce que personne ne se souvienne plus de toutes les règles implicites accumulées."
+pillar: "data-analysis"
+entryNumber: 90
+publishDate: 2026-07-30
+---
+
+Des vérifications éparpillées sous forme de `assert` dans un notebook fonctionnent tant qu'une
+seule personne maintient le code. Dès qu'une équipe grandit, ces règles implicites deviennent
+invisibles pour les nouveaux arrivants — pandera propose de les rendre explicites, sous forme de
+schéma déclaratif et réutilisable.
+
+## Déclarer un schéma plutôt que des vérifications éparpillées
+
+```python
+import pandera as pa
+from pandera import Column, Check
+
+schema = pa.DataFrameSchema({
+    "client_id": Column(int, Check.greater_than(0), nullable=False),
+    "montant": Column(float, Check.in_range(0, 1_000_000)),
+    "date_transaction": Column(pa.DateTime),
+    "statut": Column(str, Check.isin(["validé", "en_attente", "annulé"])),
+})
+
+df_valide = schema.validate(df)  # lève une erreur détaillée si le schéma n'est pas respecté
+```
+
+Le schéma devient une documentation exécutable de ce qu'on attend du DataFrame, centralisée dans
+un seul endroit plutôt que dispersée en vérifications ad hoc dans différentes parties du code.
+
+## L'erreur détaillée, pas juste un échec silencieux
+
+```python
+try:
+    schema.validate(df, lazy=True)
+except pa.errors.SchemaErrors as e:
+    print(e.failure_cases)  # liste précise des lignes et colonnes en échec
+```
+
+Le mode `lazy=True` collecte toutes les violations du schéma en une seule passe, plutôt que de
+s'arrêter à la première erreur trouvée — utile pour avoir une vue complète des problèmes de
+qualité d'un jeu de données en une seule exécution, plutôt que de corriger un problème à la
+fois.
+
+## Great Expectations pour des pipelines plus larges
+
+Là où pandera reste léger et proche de pandas, Great Expectations (déjà utilisé pour la data
+quality de pipelines batch) offre en plus un stockage d'historique de validations, une
+intégration native à des orchestrateurs comme Airflow, et une interface de reporting partagée
+avec des équipes moins techniques. Pandera convient bien à une validation rapide et locale dans
+un script Python ; Great Expectations à une gouvernance de données plus large et durable dans
+le temps.
+
+## Le bénéfice qui dépasse la simple détection d'erreurs
+
+Un schéma explicite, versionné avec le code, sert aussi de documentation vivante pour toute
+nouvelle personne qui rejoint le projet — elle n'a plus besoin de deviner les règles implicites
+en lisant du code de nettoyage dispersé, le schéma les énonce directement et de façon
+vérifiable.

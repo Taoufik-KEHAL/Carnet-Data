@@ -1,0 +1,61 @@
+---
+title: "Choisir entre batch et temps réel pour le scoring d'un modèle"
+description: "La question n'est presque jamais \"lequel est techniquement supérieur\" mais \"à quelle vitesse le métier a-t-il réellement besoin de la prédiction pour agir\"."
+pillar: "mlops"
+entryNumber: 91
+publishDate: 2026-08-05
+---
+
+Construire une API temps réel pour un modèle qui n'a besoin d'être scoré qu'une fois par jour
+ajoute de la complexité opérationnelle sans aucun bénéfice réel. À l'inverse, un scoring batch
+quotidien pour de la détection de fraude arrive systématiquement trop tard pour être utile.
+
+## Le scoring batch, plus simple à opérer
+
+```python
+# Exécuté une fois par jour, scoring de tout le portefeuille client
+clients = charger_portefeuille_complet()
+scores = modele.predict_proba(clients)
+sauvegarder_scores(scores, table="scores_quotidiens")
+```
+
+Un pipeline batch tourne à intervalle régulier, traite un grand volume d'un coup, et ne demande
+pas d'infrastructure de service continu ni de gestion de latence par requête — la solution la
+plus simple à construire et à maintenir quand la fraîcheur de la prédiction n'est pas critique.
+
+## Le scoring temps réel, quand la latence de décision compte
+
+```python
+@app.post("/score")
+def scorer_transaction(transaction: dict):
+    proba_fraude = modele.predict_proba([transaction])[0][1]
+    return {"proba_fraude": proba_fraude, "decision": proba_fraude > 0.8}
+```
+
+Une décision qui doit intervenir avant qu'une transaction ne soit validée, ou qu'une page ne
+s'affiche à un utilisateur, exige un scoring en quelques dizaines ou centaines de millisecondes
+— seul un service déployé en continu peut répondre à cette contrainte.
+
+## Le compromis intermédiaire : le micro-batch
+
+```python
+# Scoring toutes les 5 minutes plutôt qu'une fois par jour, ou en temps réel strict
+scheduler.add_job(scorer_nouvelles_transactions, "interval", minutes=5)
+```
+
+Beaucoup de cas d'usage n'exigent ni un batch quotidien ni un temps réel à la milliseconde —
+rafraîchir les scores toutes les quelques minutes couvre largement le besoin métier réel, avec
+une complexité opérationnelle bien moindre qu'un vrai service temps réel.
+
+## Le vrai critère de décision
+
+```
+Batch          : la décision n'est pas urgente, gros volumes traités d'un coup
+Micro-batch    : fraîcheur raisonnable suffisante, sans contrainte de milliseconde
+Temps réel     : la décision doit intervenir avant qu'une action utilisateur ne se termine
+```
+
+Choisir le temps réel par défaut, "au cas où", ajoute une infrastructure et un coût de
+maintenance qui ne se justifient que si le besoin métier l'exige vraiment — le bon réflexe est de
+partir du besoin de latence réel, puis de choisir l'architecture la plus simple qui le satisfait,
+pas l'inverse.

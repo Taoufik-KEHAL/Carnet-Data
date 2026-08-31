@@ -1,0 +1,61 @@
+---
+title: "Comprendre le format Delta Lake"
+description: "Parquet stocke des fichiers ; Delta Lake ajoute par-dessus ce qu'un vrai système de données attend depuis toujours — des transactions fiables."
+pillar: "big-data-cloud"
+entryNumber: 53
+publishDate: 2025-12-03
+---
+
+Un data lake construit uniquement sur des fichiers Parquet a un défaut structurel : deux
+écritures concurrentes sur le même chemin peuvent se corrompre mutuellement, et une lecture en
+cours pendant une écriture peut voir un état incohérent. Delta Lake ajoute une couche
+transactionnelle par-dessus Parquet pour régler exactement ce problème.
+
+## Un journal de transactions, pas un nouveau format de fichier
+
+Delta Lake stocke les données en Parquet classique, mais ajoute un journal (`_delta_log`) qui
+enregistre chaque opération — ajout, suppression, modification de fichiers — de façon atomique.
+Une lecture voit toujours un état cohérent de la table, jamais un mélange entre l'ancien et le
+nouveau état pendant une écriture en cours.
+
+```python
+from delta.tables import DeltaTable
+
+df.write.format("delta").mode("append").save("/data/transactions")
+
+delta_table = DeltaTable.forPath(spark, "/data/transactions")
+delta_table.update(
+    condition="statut = 'en_attente'",
+    set={"statut": "'validé'"}
+)
+```
+
+L'opération `update` sur une table Delta n'existe simplement pas sur des fichiers Parquet bruts
+— on ne peut normalement que réécrire des fichiers entiers, pas modifier des lignes.
+
+## Le voyage dans le temps (*time travel*)
+
+Chaque transaction étant journalisée, on peut interroger une table Delta telle qu'elle était à
+une version antérieure :
+
+```python
+df_hier = spark.read.format("delta").option("versionAsOf", 12).load("/data/transactions")
+```
+
+Précieux pour déboguer un problème de données ("que contenait cette table avant le job d'hier
+soir ?") ou pour auditer un changement, sans avoir à maintenir des sauvegardes manuelles
+séparées.
+
+## Schema enforcement et schema evolution
+
+Delta Lake refuse par défaut d'écrire des données dont le schéma ne correspond pas à celui de la
+table existante — une protection utile contre les erreurs silencieuses de pipeline en amont.
+Quand une évolution de schéma est réellement voulue (une nouvelle colonne ajoutée), une option
+explicite (`mergeSchema`) l'autorise, plutôt que de la laisser passer par accident.
+
+## Le compromis à connaître
+
+Ces garanties ont un coût : Delta Lake ajoute une couche de complexité et de métadonnées par
+rapport à du Parquet brut, et tire pleinement parti de son potentiel surtout dans l'écosystème
+Spark/Databricks. Pour un usage simple, batch, sans besoin de mises à jour ligne par ligne ni de
+concurrence d'écriture, du Parquet classique reste plus simple et suffisant.

@@ -1,0 +1,69 @@
+---
+title: "Ray vs Spark : quand choisir quoi pour du calcul distribué"
+description: "Spark a été conçu pour le traitement de données par lots ; Ray est né pour distribuer du code Python arbitraire, y compris l'entraînement de modèles de Machine Learning."
+pillar: "big-data-cloud"
+entryNumber: 83
+publishDate: 2026-06-15
+---
+
+Spark reste la référence pour transformer et agréger de gros volumes de données structurées. Ray
+répond à un besoin différent, apparu avec la montée en puissance du Machine Learning à grande
+échelle : distribuer du code Python arbitraire, pas seulement des transformations de type SQL.
+
+## Le modèle de programmation, la vraie différence
+
+```python
+# Spark : transformations sur des DataFrames distribués
+df.filter(col("montant") > 0).groupBy("categorie").agg(avg("montant"))
+
+# Ray : parallélisation de fonctions Python arbitraires
+import ray
+
+@ray.remote
+def entrainer_un_modele(config):
+    return entrainer(config)
+
+resultats = ray.get([entrainer_un_modele.remote(c) for c in configs])
+```
+
+Spark excelle pour des opérations qui se traduisent naturellement en SQL ou en transformations
+de DataFrame. Ray permet de distribuer n'importe quelle fonction Python — un entraînement de
+modèle, une simulation, une recherche d'hyperparamètres — sans devoir la reformuler dans un
+paradigme de type DataFrame.
+
+## Ray Tune : la recherche d'hyperparamètres distribuée
+
+```python
+from ray import tune
+
+def entrainement(config):
+    modele = construire_modele(config["learning_rate"], config["max_depth"])
+    tune.report(auc=evaluer(modele))
+
+analyse = tune.run(entrainement, config={
+    "learning_rate": tune.loguniform(1e-4, 1e-1),
+    "max_depth": tune.randint(3, 10),
+})
+```
+
+Distribuer des dizaines ou des centaines d'essais d'hyperparamètres sur un cluster, chacun
+comme une tâche indépendante, est un cas d'usage pour lequel Ray a été spécifiquement pensé —
+Spark ne le fait pas nativement avec la même simplicité.
+
+## Ray Serve pour le déploiement de modèles
+
+Ray propose aussi une brique de service de modèles distribuée, permettant de scaler
+l'inférence horizontalement sans passer par une infrastructure Kubernetes complète — utile pour
+des équipes qui veulent du calcul distribué pour l'entraînement et le service, sans maintenir
+deux stacks technologiques séparées.
+
+## Le vrai critère de choix
+
+```
+Spark : ETL, agrégations SQL, traitement batch de données structurées à grande échelle
+Ray   : entraînement ML distribué, recherche d'hyperparamètres, code Python arbitraire à paralléliser
+```
+
+Les deux peuvent coexister dans une même organisation : Spark pour préparer et agréger les
+données en amont, Ray pour l'entraînement et le service de modèles en aval — chacun sur le
+terrain où il a été spécifiquement conçu pour exceller.

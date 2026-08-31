@@ -1,0 +1,52 @@
+---
+title: "Canary release pour un modèle de Machine Learning"
+description: "Router 5 % du trafic vers un nouveau modèle, puis augmenter progressivement, limite les dégâts d'un déploiement raté à une fraction contrôlée des utilisateurs."
+pillar: "mlops"
+entryNumber: 56
+publishDate: 2025-12-22
+---
+
+Après le shadow deployment (comparer sans jamais exposer personne au résultat) vient
+naturellement le canary release : exposer réellement une petite partie du trafic au nouveau
+modèle, en surveillant de près, avant de généraliser.
+
+## Le principe de la montée progressive
+
+```
+5%  du trafic → nouveau modèle, monitoring intensif pendant 24-48h
+25% du trafic → si les métriques restent bonnes
+50% du trafic → si toujours stable
+100% du trafic → bascule complète
+```
+
+À chaque palier, un critère d'arrêt explicite (taux d'erreur, latence, métrique métier) décide
+si on continue à augmenter, ou si on revient en arrière immédiatement.
+
+## Ce qui distingue ça d'un simple A/B test
+
+Un A/B test compare deux versions sur une durée fixée pour mesurer laquelle est la meilleure. Un
+canary release a un objectif différent : détecter un problème opérationnel (crash, latence,
+erreur de configuration) le plus vite possible, avec l'intention de généraliser le nouveau
+modèle si rien de grave ne se produit — la comparaison de performance n'est pas la question
+principale, la fiabilité l'est.
+
+```python
+def router_canary(client_id, pourcentage_canary):
+    if hash(client_id) % 100 < pourcentage_canary:
+        return modele_candidat
+    return modele_stable
+```
+
+## Le critère de rollback doit être défini avant, pas pendant
+
+Décider en direct, pendant un incident, si une hausse de latence de 15 % justifie un retour en
+arrière est une mauvaise position à devoir gérer sous pression. Fixer les seuils d'alerte et de
+rollback automatique avant le déploiement — pas après avoir vu les premiers chiffres — évite
+d'improviser une décision critique dans l'urgence.
+
+## Le rollback doit être aussi simple qu'un déploiement
+
+Un canary release n'a de valeur que si revenir en arrière est rapide et sans risque
+supplémentaire. Router le trafic vers l'ancien modèle doit être une opération de configuration
+instantanée (changer un pourcentage de routage), pas un nouveau déploiement complet qui prend
+lui-même du temps et comporte son propre risque d'échec.

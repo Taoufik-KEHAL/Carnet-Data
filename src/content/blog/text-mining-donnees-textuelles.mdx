@@ -1,0 +1,73 @@
+---
+title: "Text mining : extraire de la valeur de données textuelles non structurées"
+description: "Des milliers de tickets de support, d'avis clients ou de commentaires accumulés sans jamais être exploités systématiquement représentent une source d'information largement sous-utilisée dans la plupart des organisations."
+pillar: "data-analysis"
+entryNumber: 95
+publishDate: 2026-08-31
+---
+
+Une organisation qui accumule des milliers de tickets de support ou d'avis clients sans les
+analyser systématiquement laisse de côté une source d'information souvent plus riche que ses
+métriques quantitatives habituelles — à condition d'avoir une méthode pour l'exploiter.
+
+## La préparation, l'étape qui prend le plus de temps
+
+```python
+import re
+
+def nettoyer_texte(texte):
+    texte = texte.lower()
+    texte = re.sub(r"[^\w\s]", "", texte)  # ponctuation
+    texte = re.sub(r"\d+", "", texte)      # chiffres
+    return texte.strip()
+```
+
+Le nettoyage textuel (casse, ponctuation, mots vides) conditionne la qualité de tout ce qui suit
+— une étape souvent sous-estimée alors qu'elle détermine largement la performance des analyses
+ultérieures.
+
+## L'extraction de thèmes avec la modélisation de sujets
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import NMF
+
+vectoriseur = TfidfVectorizer(max_features=1000, stop_words="french")
+matrice_tfidf = vectoriseur.fit_transform(textes_nettoyes)
+
+modele_thematique = NMF(n_components=5, random_state=42)
+modele_thematique.fit(matrice_tfidf)
+
+for i, theme in enumerate(modele_thematique.components_):
+    mots_cles = [vectoriseur.get_feature_names_out()[j] for j in theme.argsort()[-10:]]
+    print(f"Thème {i} : {mots_cles}")
+```
+
+Sans lire chaque document individuellement, cette approche identifie automatiquement des groupes
+de mots qui apparaissent souvent ensemble — un moyen rapide de découvrir les thèmes dominants
+dans un large volume de texte, à affiner ensuite avec une lecture ciblée des documents
+représentatifs de chaque thème identifié.
+
+## Extraire des entités nommées pour structurer l'information
+
+```python
+import spacy
+
+nlp = spacy.load("fr_core_news_sm")
+doc = nlp("Le produit XR200 a un défaut signalé par plusieurs clients à Lyon.")
+
+for entite in doc.ents:
+    print(entite.text, entite.label_)
+```
+
+Repérer automatiquement des produits, des lieux, des noms d'organisations dans du texte libre
+permet de structurer une information auparavant seulement disponible en prose non exploitable
+directement dans une base de données ou un tableau de bord.
+
+## Le piège du volume sans priorisation
+
+Analyser dix mille commentaires sans hiérarchiser produit une liste de thèmes qui ne dit rien
+sur leur importance relative. Croiser les thèmes extraits avec leur fréquence et, quand
+disponible, un score de sentiment associé, transforme une exploration textuelle intéressante en
+une priorité d'action concrète — savoir qu'un thème de plainte concerne 40 % des tickets récents
+compte bien plus que la simple existence de ce thème.

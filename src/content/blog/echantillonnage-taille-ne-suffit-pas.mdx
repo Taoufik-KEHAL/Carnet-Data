@@ -1,0 +1,59 @@
+---
+title: "Échantillonnage : pourquoi la taille ne suffit pas"
+description: "Un sondage sur un million de personnes mal échantillonnées peut être moins fiable qu'un sondage bien construit sur mille — la taille compense la variance, pas le biais."
+pillar: "data-analysis"
+entryNumber: 85
+publishDate: 2026-06-27
+---
+
+Un échantillon de très grande taille rassure intuitivement, mais la taille ne protège que
+contre un seul type d'erreur — la variance d'échantillonnage. Elle ne corrige jamais un biais de
+sélection, aussi grand soit l'échantillon.
+
+## L'exemple classique du biais de sélection
+
+Un sondage mené uniquement auprès des utilisateurs qui ouvrent une notification d'enquête a de
+fortes chances de sur-représenter les utilisateurs les plus engagés — ceux justement les moins
+susceptibles de partir. Interroger dix fois plus de personnes de cette même façon biaisée ne
+corrige rien, ça donne juste une estimation biaisée avec une plus petite marge d'erreur autour
+d'un chiffre qui reste faux.
+
+```python
+# Taille de l'échantillon : réduit l'incertitude statistique (l'intervalle de confiance)
+# Représentativité de l'échantillon : détermine si on mesure la bonne population
+```
+
+## L'échantillonnage aléatoire simple, la référence théorique
+
+```python
+echantillon = df.sample(n=1000, random_state=42)
+```
+
+Chaque individu de la population a la même probabilité d'être sélectionné — la référence
+théorique, mais rarement atteignable exactement en pratique, où l'accès aux données est souvent
+lui-même biaisé (seuls les utilisateurs actifs répondent, par exemple).
+
+## L'échantillonnage stratifié pour garantir la représentation de sous-groupes
+
+```python
+echantillon = df.groupby("segment", group_keys=False).apply(
+    lambda x: x.sample(frac=0.1, random_state=42)
+)
+```
+
+Un échantillonnage stratifié garantit que chaque segment (région, tranche d'âge, type de client)
+est représenté proportionnellement, évitant qu'un sous-groupe minoritaire mais important
+disparaisse presque totalement d'un échantillonnage purement aléatoire sur une petite taille.
+
+## Pondérer pour corriger un déséquilibre connu
+
+Quand un biais de sélection est identifié mais ne peut pas être évité à la collecte, pondérer
+les réponses pour rééquilibrer l'échantillon selon des caractéristiques démographiques connues de
+la population réelle (âge, région) atténue partiellement le problème — sans jamais le résoudre
+complètement pour les dimensions du biais qui restent inconnues ou non mesurées.
+
+## Le réflexe à adopter avant toute analyse
+
+Avant de se demander "cet échantillon est-il assez grand", il vaut mieux se demander "qui a une
+chance d'être exclu de cet échantillon, et pourquoi" — une question qualitative sur le processus
+de collecte, qu'aucune formule statistique de taille d'échantillon ne peut remplacer.

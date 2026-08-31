@@ -1,0 +1,63 @@
+---
+title: "Gradient boosting : comprendre LightGBM et CatBoost face à XGBoost"
+description: "Les trois implémentations partagent le même principe de boosting séquentiel, mais des choix d'ingénierie différents qui comptent selon la nature des données."
+pillar: "ml-fondamentaux"
+entryNumber: 72
+publishDate: 2026-04-04
+---
+
+XGBoost a longtemps été le choix par défaut du gradient boosting, mais LightGBM et CatBoost
+répondent chacun à des limites précises de l'implémentation d'origine, pas à un simple effet de
+mode.
+
+## LightGBM : optimisé pour la vitesse sur gros volumes
+
+```python
+import lightgbm as lgb
+
+modele = lgb.LGBMClassifier(n_estimators=300, num_leaves=31, learning_rate=0.05)
+modele.fit(X_train, y_train)
+```
+
+LightGBM construit ses arbres feuille par feuille (*leaf-wise*) plutôt que niveau par niveau
+comme XGBoost par défaut, ce qui converge plus vite mais peut aussi surapprendre plus facilement
+sur de petits jeux de données — un compromis à surveiller via `num_leaves` et une validation
+croisée attentive.
+
+## CatBoost : pensé pour les variables catégorielles
+
+```python
+from catboost import CatBoostClassifier
+
+modele = CatBoostClassifier(cat_features=["categorie", "zone_geo"], verbose=False)
+modele.fit(X_train, y_train)
+```
+
+CatBoost gère nativement les variables catégorielles sans encodage manuel préalable, via une
+méthode qui évite la fuite de données propre au target encoding classique. Sur des jeux de
+données avec beaucoup de variables catégorielles à haute cardinalité, ça simplifie
+considérablement le préprocessing et donne souvent de meilleurs résultats qu'un encodage manuel
+mal maîtrisé.
+
+## Un tableau de décision rapide
+
+```
+XGBoost  : le plus documenté, écosystème le plus large, bon choix par défaut
+LightGBM : gros volumes de données, contrainte de temps d'entraînement
+CatBoost : beaucoup de variables catégorielles, veut éviter le travail d'encodage manuel
+```
+
+## Ce qui ne change pas entre les trois
+
+Les trois reposent sur le même principe de boosting : construire des arbres séquentiellement,
+chacun corrigeant les erreurs des précédents. Les hyperparamètres qui comptent le plus restent
+similaires d'une implémentation à l'autre — profondeur des arbres, taux d'apprentissage, nombre
+d'estimateurs, régularisation — la différence se joue sur les détails d'implémentation, pas sur
+la logique d'ensemble.
+
+## Le vrai conseil pratique
+
+Sur un projet donné, tester les trois avec un budget de réglage d'hyperparamètres comparable
+donne une réponse empirique plus fiable qu'un choix a priori basé sur la réputation de chaque
+librairie — les écarts de performance entre les trois sont souvent plus faibles que l'écart
+qu'un mauvais réglage d'hyperparamètres peut introduire sur un seul d'entre eux.

@@ -1,0 +1,68 @@
+---
+title: "Dimensionner un data warehouse : le modèle en étoile vs en flocon"
+description: "Deux façons d'organiser des tables de faits et de dimensions, avec un compromis assez classique entre simplicité des requêtes et normalisation des données."
+pillar: "big-data-cloud"
+entryNumber: 73
+publishDate: 2026-04-11
+---
+
+Un data warehouse organisé sans schéma de modélisation clair finit en un enchevêtrement de
+tables où chaque nouvelle requête analytique demande de comprendre à nouveau la structure sous-
+jacente. Les modèles en étoile et en flocon existent pour éviter ça.
+
+## Le modèle en étoile : simple et dénormalisé
+
+Une table de faits centrale (les transactions, par exemple) reliée directement à des tables de
+dimensions (client, produit, temps), chacune contenant toute l'information descriptive sans
+niveau supplémentaire de normalisation :
+
+```sql
+-- Table de faits
+CREATE TABLE fait_ventes (
+    id_vente INT,
+    id_client INT,
+    id_produit INT,
+    id_temps INT,
+    montant DECIMAL
+);
+
+-- Dimension dénormalisée : tout dans une seule table
+CREATE TABLE dim_produit (
+    id_produit INT,
+    nom_produit VARCHAR,
+    categorie VARCHAR,
+    sous_categorie VARCHAR,
+    marque VARCHAR
+);
+```
+
+Les requêtes analytiques restent simples — peu de jointures, un schéma facile à comprendre pour
+quelqu'un qui découvre le warehouse.
+
+## Le modèle en flocon : normalisé, dimensions éclatées
+
+```sql
+CREATE TABLE dim_produit (id_produit INT, nom_produit VARCHAR, id_categorie INT);
+CREATE TABLE dim_categorie (id_categorie INT, nom_categorie VARCHAR, id_sous_categorie INT);
+CREATE TABLE dim_sous_categorie (id_sous_categorie INT, nom VARCHAR);
+```
+
+Chaque dimension est décomposée en sous-tables normalisées, réduisant la redondance de données
+au prix de jointures supplémentaires à chaque requête.
+
+## Le compromis à trancher
+
+Le modèle en étoile privilégie la simplicité des requêtes et de meilleures performances de
+lecture — un vrai avantage sur les moteurs analytiques modernes (BigQuery, Snowflake) où le
+stockage est bon marché et la vitesse de requête prime. Le modèle en flocon réduit la
+redondance des données et facilite les mises à jour d'une dimension (changer le nom d'une
+catégorie en un seul endroit plutôt que dans chaque ligne dénormalisée), au prix de requêtes
+plus complexes.
+
+## Le choix dominant aujourd'hui
+
+Sur les entrepôts analytiques cloud modernes, où le stockage coûte peu et le calcul est optimisé
+pour scanner de larges tables plutôt que multiplier les jointures, le modèle en étoile
+(légèrement dénormalisé) domine largement en pratique. Le modèle en flocon reste pertinent
+surtout quand les dimensions changent fréquemment et que la cohérence de mise à jour prime sur
+la vitesse de lecture pure.

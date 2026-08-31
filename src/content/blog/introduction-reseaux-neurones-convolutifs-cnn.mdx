@@ -1,0 +1,59 @@
+---
+title: "Introduction aux réseaux de neurones convolutifs (CNN)"
+description: "Un réseau dense classique appliqué à une image ignore complètement qu'un pixel a des voisins — les CNN existent précisément pour exploiter cette structure spatiale."
+pillar: "ml-fondamentaux"
+entryNumber: 62
+publishDate: 2026-01-30
+---
+
+Une image de taille modeste (224×224 pixels en couleur) représente plus de 150 000 valeurs. Un
+réseau dense classique connecterait chaque pixel à chaque neurone de la couche suivante,
+produisant un nombre de paramètres ingérable et, pire, ignorant totalement que des pixels voisins
+sont liés entre eux.
+
+## La convolution, l'opération centrale
+
+Un filtre convolutif (souvent 3×3 ou 5×5) glisse sur l'image et calcule une valeur à chaque
+position, en combinant un petit voisinage de pixels :
+
+```python
+import torch.nn as nn
+
+conv = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+```
+
+Le même filtre s'applique à toute l'image — un bord détecté en haut à gauche est détecté de la
+même façon en bas à droite. Cette réutilisation des paramètres (*weight sharing*) réduit
+drastiquement le nombre de paramètres par rapport à un réseau dense équivalent.
+
+## Le pooling, pour réduire la dimension progressivement
+
+```python
+pool = nn.MaxPool2d(kernel_size=2)
+```
+
+Le pooling réduit la résolution spatiale entre les couches, en gardant l'information la plus
+saillante (le maximum, typiquement) d'un petit voisinage. Ça rend le réseau moins sensible à de
+petits décalages de position dans l'image, et réduit le coût de calcul des couches suivantes.
+
+## Une hiérarchie de motifs, couche après couche
+
+Les premières couches convolutives d'un CNN entraîné apprennent généralement des motifs très
+simples — bords, contrastes, textures élémentaires. Les couches plus profondes combinent ces
+motifs simples en formes de plus en plus complexes, jusqu'à des concepts qui ressemblent à des
+parties d'objets reconnaissables. Cette hiérarchie émerge de l'entraînement, elle n'est jamais
+programmée explicitement.
+
+## Pourquoi partir d'un modèle pré-entraîné plutôt que de zéro
+
+```python
+from torchvision.models import resnet18
+
+modele = resnet18(weights="IMAGENET1K_V1")
+```
+
+Un CNN entraîné sur des millions d'images a déjà appris à détecter des motifs visuels généraux
+utiles à presque toute tâche d'image. Le transfert d'apprentissage — repartir de ces poids et ne
+réentraîner que les dernières couches sur son propre jeu de données — atteint souvent une bien
+meilleure performance qu'un entraînement complet depuis zéro, avec une fraction du volume de
+données et du temps de calcul nécessaires.

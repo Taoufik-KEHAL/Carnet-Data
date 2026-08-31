@@ -1,0 +1,61 @@
+---
+title: "Data quality : mettre en place des tests avec Great Expectations"
+description: "Un pipeline qui tourne sans erreur peut quand même livrer des données silencieusement corrompues — Great Expectations vérifie le contenu, pas seulement l'exécution."
+pillar: "big-data-cloud"
+entryNumber: 88
+publishDate: 2026-07-17
+---
+
+Un job ETL peut s'exécuter sans la moindre erreur technique tout en produisant des données
+fausses — une jointure qui duplique des lignes, une colonne qui devient soudainement vide à
+cause d'un changement en amont non signalé. Great Expectations ajoute une couche de validation
+du contenu des données, là où le monitoring d'exécution classique ne regarde que si le job a
+planté ou non.
+
+## Définir des attentes explicites sur les données
+
+```python
+import great_expectations as gx
+
+context = gx.get_context()
+validator = context.sources.pandas_default.read_csv("ventes.csv")
+
+validator.expect_column_values_to_not_be_null("client_id")
+validator.expect_column_values_to_be_between("montant", min_value=0, max_value=100000)
+validator.expect_column_values_to_be_in_set("statut", ["validé", "en_attente", "annulé"])
+```
+
+Chaque `expect_*` déclare une règle vérifiable automatiquement — pas de valeur nulle sur
+`client_id`, un montant dans une plage plausible, un statut parmi un ensemble de valeurs connues.
+
+## Intégrer la validation dans le pipeline
+
+```python
+resultats = validator.validate()
+
+if not resultats.success:
+    raise ValueError(f"Échec de validation des données : {resultats.statistics}")
+```
+
+Faire échouer explicitement le pipeline quand une attente n'est pas respectée empêche des
+données invalides de se propager silencieusement vers les étapes suivantes — un modèle entraîné
+sur des données corrompues sans le savoir produit des résultats qui semblent normaux mais ne le
+sont pas.
+
+## Les suites d'attentes comme documentation vivante
+
+```python
+context.add_expectation_suite("ventes_suite")
+```
+
+Une suite d'attentes documente, dans un format exécutable plutôt que dans un document séparé
+vite obsolète, ce qu'on attend réellement d'un jeu de données — une forme de documentation qui
+ne peut pas mentir, puisqu'elle est vérifiée à chaque exécution.
+
+## Où placer ces contrôles dans un pipeline
+
+Valider les données en entrée d'un pipeline détecte les problèmes venant de sources externes
+avant qu'ils ne contaminent le traitement. Valider en sortie détecte les erreurs introduites par
+le pipeline lui-même. Les deux se complètent : un pipeline qui ne valide qu'en sortie découvre
+un problème de source trop tard, après avoir déjà consommé du temps de calcul sur des données
+déjà corrompues.

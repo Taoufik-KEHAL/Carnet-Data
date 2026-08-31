@@ -1,0 +1,56 @@
+---
+title: "Analyse de sentiment : approche pratique en NLP"
+description: "Classer un avis client en positif ou négatif semble simple, jusqu'à tomber sur l'ironie, la négation à distance, ou un avis mitigé qui n'entre dans aucune des deux cases."
+pillar: "data-analysis"
+entryNumber: 75
+publishDate: 2026-04-24
+---
+
+"Livraison rapide, mais produit décevant" contient un sentiment positif et un sentiment négatif
+dans la même phrase — un problème que beaucoup d'implémentations simples d'analyse de sentiment
+gèrent mal, en réduisant tout à une seule étiquette globale.
+
+## L'approche par lexique, rapide mais limitée
+
+```python
+from textblob import TextBlob
+
+texte = "Le service était plutôt bien mais un peu lent."
+polarite = TextBlob(texte).sentiment.polarity  # entre -1 et 1
+```
+
+Une approche par lexique associe un score de polarité à chaque mot et les combine. Rapide et
+sans entraînement nécessaire, mais aveugle au contexte : elle rate l'ironie ("génial, encore en
+retard"), les négations à distance ("je ne dirais pas que c'est mauvais"), et les nuances entre
+phrases d'un même texte.
+
+## Les modèles de transformers, plus contextuels
+
+```python
+from transformers import pipeline
+
+classifieur = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
+resultat = classifieur("Le service était plutôt bien mais un peu lent.")
+```
+
+Un modèle basé sur les transformers (BERT et ses variantes) capture le contexte d'un mot à
+travers toute la phrase, ce qui améliore nettement la gestion des négations et des nuances par
+rapport à une approche par lexique — au prix d'un coût de calcul plus élevé et d'un besoin
+éventuel de fine-tuning sur un domaine spécifique.
+
+## Aller au-delà du positif/négatif/neutre
+
+Pour beaucoup d'usages métier, une étiquette globale de sentiment est moins utile qu'une analyse
+par aspect (*aspect-based sentiment analysis*) : identifier séparément le sentiment sur la
+livraison, le produit, le service client dans un même avis. C'est souvent l'information
+réellement actionnable — savoir que la satisfaction produit baisse pendant que la livraison
+reste appréciée oriente une action précise, contrairement à un score global qui moyenne les
+deux.
+
+## Le piège du domaine spécifique
+
+Un modèle entraîné sur des avis de films généralistes ne transfère pas nécessairement bien à des
+avis sur du matériel médical ou des services financiers, où le vocabulaire et les tournures
+diffèrent fortement. Valider un modèle de sentiment sur un échantillon annoté manuellement
+provenant du domaine réel d'application, avant de le déployer, évite de découvrir cette
+limitation seulement une fois en production.

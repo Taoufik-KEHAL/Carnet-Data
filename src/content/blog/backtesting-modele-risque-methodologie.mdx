@@ -1,0 +1,59 @@
+---
+title: "Backtesting d'un modèle de risque : méthodologie"
+description: "Un modèle validé une fois à son lancement et jamais revérifié depuis n'est qu'une hypothèse non testée sur tout ce qui s'est passé après."
+pillar: "risk-modeling"
+entryNumber: 69
+publishDate: 2026-03-16
+---
+
+Le backtesting consiste à confronter, après coup, les prédictions passées d'un modèle à ce qui
+s'est réellement produit — une vérification que la validation initiale, faite avant déploiement,
+ne peut par définition jamais remplacer.
+
+## La différence avec la validation initiale
+
+La validation initiale évalue un modèle sur des données historiques, avant sa mise en
+production. Le backtesting évalue ce même modèle sur des données réellement observées après son
+déploiement — la vraie question n'est plus "ce modèle aurait-il bien fonctionné sur le passé"
+mais "fonctionne-t-il encore correctement maintenant".
+
+## Ce qu'un backtest de scoring de crédit vérifie concrètement
+
+```python
+# Comparer les taux de défaut observés par tranche de score
+import pandas as pd
+
+resultats = df.groupby("tranche_score").agg(
+    defaut_attendu=("probabilite_predite", "mean"),
+    defaut_observe=("defaut_reel", "mean"),
+    nb_dossiers=("id", "count"),
+)
+resultats["ecart"] = resultats["defaut_observe"] - resultats["defaut_attendu"]
+```
+
+Un écart systématique entre défaut attendu et défaut observé, dans une direction constante sur
+plusieurs tranches, signale un problème de calibration qui s'est développé depuis la mise en
+production — pas nécessairement une erreur de modèle initiale, mais une évolution du contexte
+que le modèle n'a pas suivie.
+
+## La fréquence de backtesting dépend du cycle du risque
+
+Un modèle de détection de fraude, où la vérité terrain arrive vite, peut être backtesté chaque
+semaine. Un modèle de risque de crédit à un an, où le défaut ne se matérialise qu'après plusieurs
+mois, ne peut être backtesté significativement qu'à cette échéance — vouloir le faire plus tôt
+ne produit qu'un signal partiel et potentiellement trompeur.
+
+## Le test de Kupiec pour la VaR
+
+En risque de marché, le backtesting de la Value at Risk suit une méthodologie standardisée : sur
+un historique donné, le nombre de dépassements réels de la VaR doit rester statistiquement
+cohérent avec le seuil de confiance annoncé (environ 5 % de dépassements pour une VaR à 95 %).
+Un nombre de dépassements significativement supérieur signale une VaR sous-estimée — un signal
+que les régulateurs bancaires surveillent activement dans le cadre de Bâle.
+
+## Le backtesting n'est pas une formalité ponctuelle
+
+Un modèle qui a passé son backtest il y a un an et n'a jamais été revérifié depuis n'offre aucune
+garantie sur sa fiabilité actuelle. Intégrer le backtesting comme un processus récurrent,
+documenté et suivi dans le temps, fait toute la différence entre une validation qui protège
+réellement et une case cochée une fois pour se rassurer.

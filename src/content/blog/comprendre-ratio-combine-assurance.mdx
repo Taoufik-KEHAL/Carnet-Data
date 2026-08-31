@@ -1,0 +1,53 @@
+---
+title: "Comprendre le ratio combiné en assurance non-vie"
+description: "Un seul chiffre résume si une activité d'assurance non-vie est rentable sur son activité technique pure, indépendamment des revenus financiers."
+pillar: "risk-modeling"
+entryNumber: 74
+publishDate: 2026-04-17
+---
+
+Le ratio combiné est la métrique de référence pour juger la rentabilité technique d'un
+portefeuille d'assurance non-vie — au-delà de 100 %, l'activité d'assurance elle-même perd de
+l'argent, compensée éventuellement par les revenus financiers générés par le placement des
+primes collectées.
+
+## La formule, simple en apparence
+
+```
+Ratio combiné = Ratio de sinistralité + Ratio de frais
+
+Ratio de sinistralité = Sinistres payés / Primes acquises
+Ratio de frais         = Frais de gestion et d'acquisition / Primes acquises
+```
+
+Un ratio combiné de 95 % signifie que pour 100€ de primes encaissées, 95€ sont partis en
+sinistres et en frais — un profit technique de 5€, avant tout revenu financier.
+
+## Pourquoi un ratio supérieur à 100 % n'est pas automatiquement une catastrophe
+
+Une compagnie d'assurance investit les primes collectées avant de payer les sinistres
+(le *float*). Un ratio combiné légèrement supérieur à 100 % peut rester profitable au global si
+les revenus financiers sur ce float couvrent la perte technique — une pratique courante et
+assumée dans certains segments, en particulier quand les taux d'intérêt sont élevés.
+
+```python
+resultat_technique = primes_acquises - sinistres - frais
+resultat_financier = float_moyen * taux_investissement
+resultat_total = resultat_technique + resultat_financier
+```
+
+## Ce qu'un data scientist peut faire avec ce ratio
+
+Décomposer le ratio combiné par segment (branche, zone géographique, canal de distribution)
+révèle souvent que la rentabilité globale masque des segments largement déficitaires compensés
+par d'autres très rentables. Un modèle de tarification affiné segment par segment vise
+précisément à corriger ces déséquilibres, plutôt que d'appliquer un ajustement tarifaire uniforme
+qui pénaliserait les bons segments pour compenser les mauvais.
+
+## Le piège de l'optimisation à court terme
+
+Réduire agressivement le ratio de sinistralité en durcissant les critères de souscription peut
+améliorer le ratio combiné à court terme tout en réduisant le volume de primes collectées et en
+perdant des parts de marché sur des segments encore rentables — le ratio combiné doit toujours
+se lire avec le volume d'activité et l'évolution de la part de marché, pas isolément comme une
+métrique de rentabilité pure.

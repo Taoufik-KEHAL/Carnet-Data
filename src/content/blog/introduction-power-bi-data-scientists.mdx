@@ -1,0 +1,52 @@
+---
+title: "Introduction à Power BI pour les data scientists habitués à Python"
+description: "Un data scientist qui découvre Power BI après des années de pandas trouve souvent l'expérience étrangement plus rapide pour un cas d'usage bien précis : le tableau de bord partagé."
+pillar: "data-analysis"
+entryNumber: 55
+publishDate: 2025-12-16
+---
+
+Power BI n'a pas vocation à remplacer Python pour l'analyse exploratoire ou la modélisation —
+son terrain, c'est le tableau de bord interactif partagé avec des équipes non techniques, mis à
+jour automatiquement à partir de sources connectées.
+
+## Le modèle mental : requête, modèle, visuel
+
+Power BI sépare trois couches. Power Query gère l'extraction et la transformation des données
+(l'équivalent d'un pipeline pandas, avec une interface visuelle plutôt que du code). Le modèle
+de données définit les relations entre tables, un peu comme des clés étrangères dans une base
+relationnelle. Les visuels consomment ce modèle pour produire graphiques et tableaux
+interactifs.
+
+## DAX, le langage qu'on ne peut pas éviter
+
+Les calculs plus poussés qu'une simple agrégation passent par DAX (*Data Analysis
+Expressions*), un langage assez différent de SQL ou de pandas dans sa logique :
+
+```dax
+Ventes N-1 = CALCULATE(
+    SUM(Ventes[Montant]),
+    SAMEPERIODLASTYEAR('Calendrier'[Date])
+)
+```
+
+DAX raisonne en termes de contexte de filtre plutôt que de lignes explicites — la même formule
+peut produire des résultats différents selon les filtres actifs sur le visuel qui l'affiche.
+C'est la partie de l'outil qui demande le plus d'adaptation venant de Python.
+
+## Ce que Power BI fait mieux qu'un notebook pour ce cas d'usage précis
+
+- **Rafraîchissement automatique** des données depuis les sources connectées, sans script
+  planifié à maintenir.
+- **Partage natif** avec des permissions fines, consultable sans que le destinataire ait besoin
+  d'installer quoi que ce soit.
+- **Interactivité immédiate** — filtrer, croiser, explorer sans écrire de code, ce qu'un
+  notebook Jupyter statique n'offre pas nativement à un public non technique.
+
+## Où Python reste supérieur
+
+Toute analyse qui demande une vraie modélisation statistique, du Machine Learning, ou une
+manipulation de données complexe (jointures conditionnelles avancées, itérations, structures de
+données imbriquées) reste plus naturelle en Python. Le flux de travail le plus efficace combine
+souvent les deux : préparer et modéliser en Python, publier le résultat final dans Power BI pour
+la consommation par des équipes métier.

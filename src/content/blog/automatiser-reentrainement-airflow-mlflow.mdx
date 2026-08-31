@@ -1,0 +1,69 @@
+---
+title: "Automatiser le réentraînement périodique avec Airflow et MLflow"
+description: "Combiner l'orchestration d'Airflow et le suivi de MLflow couvre le cycle complet, de l'extraction des nouvelles données jusqu'à la mise à jour du modèle en production."
+pillar: "mlops"
+entryNumber: 81
+publishDate: 2026-06-02
+---
+
+Un modèle réentraîné manuellement finit toujours par prendre du retard — les bonnes intentions
+de réentraînement mensuel deviennent trimestrielles, puis occasionnelles. Automatiser le cycle
+complet dans un DAG résout ce problème par construction.
+
+## Le DAG de bout en bout
+
+```python
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+
+with DAG("reentrainement_mensuel", schedule="@monthly", start_date=datetime(2026, 1, 1)) as dag:
+    extraire = PythonOperator(task_id="extraire_donnees", python_callable=extraire_nouvelles_donnees)
+    entrainer = PythonOperator(task_id="entrainer", python_callable=entrainer_avec_mlflow)
+    evaluer = PythonOperator(task_id="evaluer", python_callable=comparer_au_modele_actuel)
+    promouvoir = PythonOperator(task_id="promouvoir", python_callable=promouvoir_si_meilleur)
+
+    extraire >> entrainer >> evaluer >> promouvoir
+```
+
+Chaque étape a une responsabilité claire, et Airflow garantit qu'elles s'exécutent dans le bon
+ordre, avec retry automatique en cas d'échec transitoire.
+
+## La tâche d'entraînement, tracée dans MLflow
+
+```python
+def entrainer_avec_mlflow(**kwargs):
+    import mlflow
+
+    with mlflow.start_run():
+        modele = entrainer_modele(donnees_du_mois)
+        mlflow.log_metric("auc", evaluer(modele))
+        mlflow.sklearn.log_model(modele, "modele", registered_model_name="scoring-credit")
+```
+
+Chaque exécution mensuelle du DAG produit un run MLflow tracé — comparer le modèle de ce mois à
+celui d'il y a six mois devient une simple consultation de l'historique, pas une reconstitution
+manuelle.
+
+## La comparaison avant promotion, l'étape qui protège
+
+```python
+def comparer_au_modele_actuel(**kwargs):
+    nouveau = charger_dernier_run()
+    actuel = charger_modele_production()
+
+    if nouveau.auc <= actuel.auc:
+        raise ValueError("Le nouveau modèle n'améliore pas la performance — pas de promotion")
+```
+
+Réentraîner automatiquement chaque mois ne veut pas dire promouvoir automatiquement chaque
+résultat — un DAG bien conçu compare systématiquement avant de remplacer le modèle en
+production, et échoue volontairement (sans casser le pipeline) si le nouveau modèle n'apporte
+pas d'amélioration réelle.
+
+## Ce que l'automatisation ne doit pas supprimer
+
+Même avec ce pipeline entièrement automatisé, garder une alerte qui notifie l'équipe à chaque
+réentraînement — succès ou échec de promotion — évite qu'un problème silencieux (des données de
+mauvaise qualité qui font baisser la performance mois après mois sans jamais déclencher d'échec
+explicite) ne passe inaperçu pendant des mois.

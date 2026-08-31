@@ -1,0 +1,49 @@
+---
+title: "Rollback d'un modèle en production : la checklist"
+description: "Le meilleur moment pour réfléchir à comment revenir en arrière n'est jamais pendant l'incident lui-même — c'est avant, quand tout va encore bien."
+pillar: "mlops"
+entryNumber: 76
+publishDate: 2026-04-30
+---
+
+Un déploiement qui se passe mal arrive à toute équipe, aussi rigoureuse soit-elle. Ce qui
+distingue un incident maîtrisé d'un incident qui dégénère, c'est rarement la cause initiale —
+c'est la vitesse et la fiabilité du rollback.
+
+## Le prérequis : le modèle précédent doit rester disponible
+
+```python
+client.transition_model_version_stage(
+    name="scoring-credit", version=8, stage="Production"
+)
+# La version 7 reste enregistrée dans le Model Registry, jamais supprimée
+```
+
+Un rollback rapide suppose que la version précédente n'a jamais été effacée du registre ni du
+stockage — un modèle "remplacé" doit toujours être archivé, pas supprimé, au minimum pendant une
+période de stabilisation après chaque nouveau déploiement.
+
+## Le rollback doit être une opération de configuration, pas un redéploiement
+
+Si revenir à l'ancienne version demande de reconstruire une image Docker, relancer un pipeline
+CI/CD complet et attendre vingt minutes, le rollback n'est pas assez rapide pour un incident en
+cours. Router le trafic vers une version différente déjà déployée en parallèle (via un simple
+changement de configuration ou de pointeur vers le registre) doit prendre quelques secondes, pas
+plusieurs minutes.
+
+## La checklist avant chaque déploiement
+
+- Le modèle précédent est-il encore accessible et déployable immédiatement ?
+- Le critère de rollback (quel seuil de dégradation déclenche un retour en arrière) est-il
+  défini et documenté, pas improvisé au moment de l'incident ?
+- Qui a l'autorité et l'accès technique pour déclencher un rollback à n'importe quelle heure,
+  pas seulement pendant les horaires de bureau ?
+- Le rollback lui-même a-t-il été testé en conditions réelles au moins une fois, pas seulement
+  documenté sur le papier ?
+
+## Le post-mortem, une fois l'incident résolu
+
+Un rollback réussi n'est pas la fin du travail. Comprendre pourquoi le déploiement a échoué —
+donnée d'entraînement problématique, bug de code, changement d'environnement non anticipé — et
+documenter cette cause évite de refaire la même erreur lors du prochain déploiement. Un rollback
+sans analyse de cause devient un pansement répété indéfiniment, jamais une vraie correction.

@@ -1,0 +1,67 @@
+---
+title: "Data versioning avec DVC : les bases"
+description: "Git gère très bien le code, très mal les fichiers de plusieurs gigaoctets — DVC couple les deux en gardant seulement une référence légère dans le dépôt."
+pillar: "mlops"
+entryNumber: 86
+publishDate: 2026-07-04
+---
+
+Versionner un fichier de données de dix gigaoctets directement dans Git fait exploser la taille
+du dépôt à chaque modification, même mineure — Git n'a jamais été conçu pour ça. DVC (Data
+Version Control) résout ce problème en stockant les données ailleurs, tout en gardant leur
+historique de versions lié au code qui les utilise.
+
+## Le principe : un pointeur léger dans Git, les données ailleurs
+
+```bash
+dvc add donnees/entrainement.csv
+git add donnees/entrainement.csv.dvc .gitignore
+git commit -m "Ajout du jeu de données v1"
+```
+
+`dvc add` calcule un hash du fichier et crée un petit fichier `.dvc` contenant ce hash — c'est ce
+fichier léger, pas les données elles-mêmes, qui est versionné dans Git. Les données réelles sont
+stockées dans un espace distant (S3, GCS, Azure Blob) configuré comme *remote* DVC.
+
+```bash
+dvc remote add -d stockage s3://mon-bucket/dvc-storage
+dvc push   # envoie les données vers le stockage distant
+dvc pull   # récupère les données correspondant à la version Git actuelle
+```
+
+## Revenir à une version antérieure des données
+
+```bash
+git checkout v1.0
+dvc checkout   # synchronise les fichiers de données avec cette version du code
+```
+
+Basculer vers un ancien commit Git ramène automatiquement, via `dvc checkout`, la version des
+données qui correspondait à ce commit — la même discipline de versionnement que le code,
+appliquée aux données.
+
+## Les pipelines DVC, au-delà du simple versionnement
+
+```yaml
+# dvc.yaml
+stages:
+  preparer:
+    cmd: python preparer.py
+    deps: [donnees/brutes.csv]
+    outs: [donnees/preparees.csv]
+  entrainer:
+    cmd: python entrainer.py
+    deps: [donnees/preparees.csv]
+    outs: [modele.pkl]
+```
+
+DVC peut aussi définir un pipeline de transformation avec des dépendances explicites entre
+étapes, et ne réexécute que les étapes dont les entrées ont changé — un gain de temps réel sur
+un pipeline avec plusieurs étapes coûteuses en calcul.
+
+## Ce que DVC apporte que MLflow n'apporte pas
+
+MLflow trace les expériences et les modèles, mais ne répond pas à "quelle version exacte des
+données brutes a servi à cet entraînement". DVC comble précisément ce manque — les deux outils
+sont complémentaires plutôt que concurrents, et beaucoup d'équipes les utilisent ensemble : DVC
+pour les données, MLflow pour le suivi des runs et le registre de modèles.

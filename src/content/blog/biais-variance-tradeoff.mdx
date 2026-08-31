@@ -1,0 +1,58 @@
+---
+title: "Comprendre le biais-variance trade-off"
+description: "Sous-apprentissage et surapprentissage sont les deux symptômes d'un seul et même compromis, qu'on ne peut pas éliminer, seulement équilibrer."
+pillar: "ml-fondamentaux"
+entryNumber: 47
+publishDate: 2025-10-25
+---
+
+L'erreur totale d'un modèle se décompose en trois sources : le biais, la variance, et le bruit
+irréductible propre aux données. Comprendre cette décomposition explique pourquoi rendre un
+modèle plus complexe ne l'améliore pas toujours.
+
+## Le biais : un modèle trop simple pour le problème
+
+Le biais mesure l'écart systématique entre les prédictions du modèle et la vraie relation
+sous-jacente. Une régression linéaire appliquée à une relation clairement non linéaire aura un
+biais élevé, quel que soit le volume de données fourni — le modèle n'a tout simplement pas la
+capacité de représenter la relation réelle.
+
+## La variance : un modèle trop sensible aux données d'entraînement
+
+La variance mesure à quel point les prédictions du modèle changeraient si on l'entraînait sur un
+échantillon différent, tiré de la même population. Un arbre de décision très profond aura une
+variance élevée : un léger changement dans les données d'entraînement peut produire un arbre
+complètement différent.
+
+```python
+# Biais élevé, variance faible
+from sklearn.linear_model import LinearRegression
+modele_simple = LinearRegression()
+
+# Biais faible, variance élevée
+from sklearn.tree import DecisionTreeRegressor
+modele_complexe = DecisionTreeRegressor(max_depth=None)
+```
+
+## Le compromis, pas l'élimination
+
+Réduire le biais (en complexifiant le modèle) augmente généralement la variance, et
+inversement. Il n'existe pas de modèle qui minimise les deux simultanément pour un jeu de
+données donné — le vrai travail consiste à trouver le point d'équilibre qui minimise l'erreur
+totale, pas à pousser un seul des deux termes vers zéro.
+
+## Comment observer le compromis en pratique
+
+Faire varier un hyperparamètre qui contrôle la complexité (profondeur d'un arbre, degré d'un
+polynôme, régularisation) et suivre l'erreur d'entraînement et de validation en fonction de ce
+paramètre rend le compromis visible : l'erreur d'entraînement diminue continûment avec la
+complexité, tandis que l'erreur de validation forme une courbe en U — c'est le point bas de
+cette courbe qui indique le meilleur compromis, pas l'extrémité la plus complexe.
+
+## Ce qui déplace le curseur
+
+Plus de données d'entraînement réduit la variance sans toucher au biais — un modèle complexe
+devient alors plus praticable. À l'inverse, un jeu de données petit favorise structurellement
+les modèles à biais plus élevé mais plus stables. C'est une des raisons pour lesquelles un
+modèle simple bat souvent un modèle sophistiqué sur un petit jeu de données, avant de perdre
+cet avantage une fois le volume de données suffisant.

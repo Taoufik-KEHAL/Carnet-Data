@@ -1,0 +1,65 @@
+---
+title: "Bootstrap et intervalles de confiance pour les métriques de modèle"
+description: "Une AUC de 0,82 sans intervalle de confiance ne dit rien sur sa fiabilité — le bootstrap permet d'en estimer un sans hypothèse sur la distribution sous-jacente."
+pillar: "ml-fondamentaux"
+entryNumber: 87
+publishDate: 2026-07-10
+---
+
+Annoncer qu'un modèle a une AUC de 0,82 sans préciser l'incertitude autour de ce chiffre laisse
+croire à une précision qu'un seul jeu de test ne peut pas garantir. Le bootstrap répond à cette
+lacune sans exiger d'hypothèse forte sur la distribution des données.
+
+## Le principe du bootstrap
+
+```python
+import numpy as np
+from sklearn.metrics import roc_auc_score
+
+scores_bootstrap = []
+n_iterations = 1000
+
+for _ in range(n_iterations):
+    indices = np.random.choice(len(y_test), size=len(y_test), replace=True)
+    score = roc_auc_score(y_test.iloc[indices], y_pred_proba[indices])
+    scores_bootstrap.append(score)
+
+ic_bas, ic_haut = np.percentile(scores_bootstrap, [2.5, 97.5])
+print(f"AUC : {np.mean(scores_bootstrap):.3f}, IC 95% : [{ic_bas:.3f}, {ic_haut:.3f}]")
+```
+
+Rééchantillonner le jeu de test avec remise, encore et encore, et recalculer la métrique à
+chaque fois donne une distribution empirique de cette métrique — sans supposer une forme
+particulière (normale ou autre) pour cette distribution.
+
+## Pourquoi c'est particulièrement utile en Machine Learning
+
+Contrairement à beaucoup de tests statistiques classiques qui supposent une distribution
+connue, le bootstrap fonctionne quelle que soit la complexité de la métrique — AUC, F1-score,
+n'importe quelle métrique composite peut être bootstrappée de la même façon, sans dérivation
+mathématique spécifique à chacune.
+
+## Comparer deux modèles avec le bootstrap
+
+```python
+differences = []
+for _ in range(n_iterations):
+    indices = np.random.choice(len(y_test), size=len(y_test), replace=True)
+    auc_a = roc_auc_score(y_test.iloc[indices], predictions_a[indices])
+    auc_b = roc_auc_score(y_test.iloc[indices], predictions_b[indices])
+    differences.append(auc_a - auc_b)
+
+proportion_positive = np.mean(np.array(differences) > 0)
+```
+
+Si l'intervalle de confiance de la différence entre deux modèles inclut zéro, l'écart observé
+sur le jeu de test pourrait très bien être dû au hasard de l'échantillonnage plutôt qu'à une
+vraie différence de performance — une information cruciale avant de décider qu'un modèle "bat"
+un autre sur la seule base d'un chiffre unique.
+
+## La limite à connaître
+
+Le bootstrap estime la variabilité liée à l'échantillonnage du jeu de test disponible, pas la
+variabilité qu'on observerait sur des données futures potentiellement différentes. Un intervalle
+de confiance étroit rassure sur la stabilité de la mesure actuelle, il ne garantit rien sur la
+stabilité du modèle une fois les données réelles amenées à évoluer dans le temps.

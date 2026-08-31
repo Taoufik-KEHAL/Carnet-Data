@@ -1,0 +1,61 @@
+---
+title: "Model Registry : comparer MLflow, SageMaker et Vertex AI"
+description: "Les trois grandes plateformes résolvent le même problème de gestion de version des modèles, avec des philosophies d'intégration assez différentes."
+pillar: "mlops"
+entryNumber: 61
+publishDate: 2026-01-23
+---
+
+Une fois qu'une équipe dépasse un ou deux modèles en production, savoir quelle version tourne
+où, avec quel historique de performance, devient impossible à suivre manuellement. Les trois
+grandes solutions de Model Registry répondent au même besoin avec des degrés d'intégration
+différents.
+
+## MLflow Model Registry : l'option la plus flexible
+
+```python
+from mlflow import MlflowClient
+
+client = MlflowClient()
+client.transition_model_version_stage(
+    name="scoring-credit", version=7, stage="Production"
+)
+```
+
+MLflow peut s'auto-héberger ou tourner en mode managé sur n'importe quel cloud, ce qui en fait le
+choix naturel pour une équipe qui veut éviter le lock-in vers un fournisseur en particulier.
+Contrepartie : l'intégration avec le reste de l'infrastructure de déploiement demande davantage
+de configuration manuelle.
+
+## SageMaker Model Registry : intégré à l'écosystème AWS
+
+SageMaker couple directement le registre au déploiement — approuver une version dans le
+registre peut déclencher automatiquement son déploiement sur un endpoint SageMaker, sans code de
+liaison supplémentaire à écrire. Le compromis : cette fluidité suppose de rester dans
+l'écosystème AWS pour l'entraînement, le stockage et le déploiement.
+
+## Vertex AI Model Registry : orienté MLOps de bout en bout
+
+Vertex AI pousse l'intégration plus loin encore, avec un lien direct vers Vertex Pipelines pour
+l'entraînement automatisé et Vertex Endpoints pour le déploiement, dans une interface unifiée.
+Un vrai atout pour une équipe déjà investie dans BigQuery et l'écosystème GCP, moins pertinent
+sinon.
+
+## Le vrai critère de choix
+
+```
+MLflow    : multi-cloud, auto-hébergeable, flexible mais plus de configuration manuelle
+SageMaker : intégration AWS profonde, productif vite si déjà sur AWS
+Vertex AI : intégration GCP profonde, productif vite si déjà sur GCP
+```
+
+Le choix dépend presque entièrement de l'infrastructure cloud déjà en place, pas des
+fonctionnalités listées sur le papier — les trois couvrent le besoin de base (versionner,
+suivre le statut, historiser les métriques) de façon comparable.
+
+## Ce qui compte au-delà du choix d'outil
+
+Quel que soit le registre choisi, la vraie valeur vient de la discipline : enregistrer
+systématiquement chaque modèle entraîné, documenter les métriques associées, et ne jamais
+déployer un modèle qui n'est pas passé par le registre — un registre non utilisé de façon
+systématique n'apporte aucune garantie, quelle que soit sa sophistication technique.

@@ -1,0 +1,50 @@
+---
+title: "Anti-sélection en assurance : ce que le Machine Learning peut (et ne peut pas) faire"
+description: "Un assureur qui tarife moins précisément que ses concurrents attire mécaniquement les mauvais risques — l'anti-sélection n'est pas un détail technique, c'est un risque structurel."
+pillar: "risk-modeling"
+entryNumber: 84
+publishDate: 2026-06-21
+---
+
+L'anti-sélection se produit quand un assuré en sait plus sur son propre risque que l'assureur,
+et utilise cette asymétrie d'information à son avantage — souscrire une assurance santé
+seulement en prévoyant un besoin de soins prochain, par exemple. Un modèle de tarification
+insuffisamment précis amplifie ce phénomène plutôt que de le corriger.
+
+## Le mécanisme, en simplifié
+
+```
+Assureur A : tarif uniforme, ne distingue pas les profils de risque
+Assureur B : tarif segmenté selon le risque réel
+
+→ Les bons risques quittent A pour B (tarif plus avantageux chez B)
+→ Les mauvais risques restent chez A (tarif encore avantageux comparé à leur vrai risque)
+→ A se retrouve avec un portefeuille de plus en plus mauvais, sans l'avoir choisi
+```
+
+Un assureur qui segmente moins finement que ses concurrents subit une dégradation progressive et
+silencieuse de son portefeuille, purement due à ce mécanisme de sélection, indépendamment de
+toute erreur de gestion.
+
+## Ce que le Machine Learning peut vraiment améliorer
+
+Un modèle plus riche en variables et en interactions capture des signaux de risque plus fins
+qu'un GLM traditionnel avec peu de variables — réduisant l'écart entre le tarif proposé et le
+risque réel de chaque profil, et donc l'opportunité d'anti-sélection qu'un tarif mal ajusté
+laisserait ouverte.
+
+## Ce que le Machine Learning ne peut pas résoudre seul
+
+Une partie de l'asymétrie d'information reste structurellement invisible dans les données
+disponibles à l'assureur — un projet de grossesse, une intention de changer de mode de vie, une
+connaissance familiale d'un risque héréditaire non déclarée. Aucun modèle, aussi sophistiqué
+soit-il, ne peut prédire une information que les données ne contiennent tout simplement pas.
+
+## La limite réglementaire, un frein volontaire
+
+Certaines variables qui réduiraient l'anti-sélection sur le papier (tests génétiques, historique
+médical détaillé) sont interdites ou fortement encadrées dans la tarification de nombreuses
+branches d'assurance, précisément pour éviter une segmentation qui exclurait des populations
+entières de la mutualisation du risque — un choix de société qui prime délibérément sur
+l'optimisation actuarielle pure, et qui limite structurellement ce qu'un modèle peut légalement
+exploiter, même s'il pourrait techniquement le faire.

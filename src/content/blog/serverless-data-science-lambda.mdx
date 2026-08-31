@@ -1,0 +1,60 @@
+---
+title: "Serverless pour la Data Science : AWS Lambda et fonctions cloud"
+description: "Pas de serveur à gérer, une facturation à l'exécution — le serverless convient à une partie précise des besoins en Data Science, pas à tous."
+pillar: "big-data-cloud"
+entryNumber: 63
+publishDate: 2026-02-05
+---
+
+Une fonction Lambda s'exécute à la demande, sans qu'aucune machine ne tourne en continu en
+attendant une requête — la facturation ne compte que le temps d'exécution réel, à la
+milliseconde près.
+
+## Un exemple d'inférence serverless
+
+```python
+import json
+import joblib
+
+modele = joblib.load("/opt/modele.pkl")  # chargé une fois par instance
+
+def lambda_handler(event, context):
+    features = json.loads(event["body"])
+    proba = modele.predict_proba([list(features.values())])[0][1]
+    return {"statusCode": 200, "body": json.dumps({"probabilite": proba})}
+```
+
+Pour un trafic faible ou irrégulier (quelques centaines de requêtes par jour, avec des pics
+imprévisibles), payer uniquement pour l'exécution réelle coûte souvent bien moins cher qu'un
+serveur qui tourne 24h/24 en attendant du trafic.
+
+## Le cold start, la vraie limite
+
+La première requête après une période d'inactivité doit démarrer une nouvelle instance de la
+fonction — ce démarrage (*cold start*) ajoute une latence supplémentaire, parfois plusieurs
+secondes pour des dépendances lourdes comme scikit-learn ou PyTorch. Pour un cas d'usage
+sensible à la latence (une API appelée en temps réel dans un parcours utilisateur), ce délai peut
+être rédhibitoire.
+
+```python
+# Réduire la taille des dépendances limite le cold start
+# Un modèle léger (régression logistique) démarre bien plus vite
+# qu'un modèle deep learning avec ses librairies associées
+```
+
+## Les limites structurelles à connaître
+
+- **Temps d'exécution maximal** — généralement 15 minutes sur AWS Lambda, incompatible avec un
+  entraînement de modèle long.
+- **Mémoire et taille de package limitées** — un modèle volumineux ou des dépendances lourdes
+  peuvent dépasser les quotas par défaut.
+- **Pas d'état persistant entre invocations** — chaque appel repart d'un contexte propre, sauf
+  réutilisation opportuniste d'une instance déjà chaude.
+
+## Le bon cas d'usage
+
+Le serverless convient bien à l'inférence légère et peu fréquente, au traitement d'événements
+déclenchés ponctuellement (un fichier déposé dans un bucket, un message dans une file), ou à des
+tâches de prétraitement courtes dans un pipeline plus large. Pour l'entraînement de modèles ou
+l'inférence à fort volume et faible latence exigée en continu, une infrastructure dédiée
+(conteneur toujours actif, cluster GPU) reste mieux adaptée.

@@ -1,0 +1,61 @@
+---
+title: "Corrélation n'est pas causalité : méthodes d'inférence causale simples"
+description: "Tout le monde répète la formule sans forcément savoir quoi faire à la place quand une vraie décision doit s'appuyer sur un effet causal, pas seulement une corrélation observée."
+pillar: "data-analysis"
+entryNumber: 70
+publishDate: 2026-03-23
+---
+
+Observer que les utilisateurs qui ouvrent l'application tous les jours dépensent plus ne prouve
+pas qu'ouvrir l'application plus souvent cause la dépense — les deux pourraient simplement
+provenir d'un troisième facteur, un intérêt initial plus fort pour le produit, qui explique les
+deux comportements à la fois.
+
+## Le problème du facteur confondant
+
+Un facteur confondant influence à la fois la variable qu'on croit être la cause et celle qu'on
+croit être l'effet, créant une corrélation qui n'a rien de causal :
+
+```
+Intérêt initial élevé → ouvre l'app souvent
+Intérêt initial élevé → dépense plus
+```
+
+Sans contrôler cet intérêt initial, la corrélation observée entre fréquence d'ouverture et
+dépense reste ambiguë sur la vraie relation de cause à effet.
+
+## L'expérience randomisée, la référence
+
+La méthode la plus fiable reste l'assignation aléatoire — un A/B test classique. En répartissant
+les utilisateurs au hasard entre deux conditions, tout facteur confondant (connu ou inconnu) se
+répartit en moyenne également entre les deux groupes, isolant l'effet réel de la variable
+testée.
+
+## Quand l'expérience randomisée est impossible
+
+Beaucoup de questions ne se prêtent pas à un A/B test (on ne peut pas assigner aléatoirement le
+niveau de revenu ou l'âge d'un client). Les variables instrumentales, la régression sur
+discontinuité, et le matching sur score de propension sont des méthodes qui tentent d'approcher
+les conditions d'une expérience randomisée à partir de données observationnelles :
+
+```python
+from sklearn.linear_model import LogisticRegression
+
+# Score de propension : probabilité d'avoir reçu le traitement, selon les covariables observées
+modele_propension = LogisticRegression().fit(X_covariables, traitement)
+scores = modele_propension.predict_proba(X_covariables)[:, 1]
+
+# Comparer des individus avec un score de propension similaire, traités et non traités
+```
+
+Le matching sur score de propension compare des individus traités et non traités qui se
+ressemblent sur les variables observées — une façon de neutraliser partiellement les facteurs
+confondants mesurés, sans garantir de contrôler ceux qui n'ont pas été mesurés.
+
+## La limite qu'aucune méthode n'élimine complètement
+
+Les méthodes d'inférence causale sur données observationnelles contrôlent les facteurs
+confondants *mesurés*, jamais ceux qui ne le sont pas. La conclusion causale reste donc toujours
+conditionnée à l'hypothèse qu'aucun facteur confondant important n'a été omis — une hypothèse
+qui ne peut jamais être vérifiée directement à partir des seules données disponibles, et qui
+mérite d'être explicitée plutôt que passée sous silence dans les conclusions présentées.

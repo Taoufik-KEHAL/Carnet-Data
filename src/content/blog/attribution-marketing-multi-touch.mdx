@@ -1,0 +1,56 @@
+---
+title: "Attribution marketing : comprendre les modèles multi-touch"
+description: "Attribuer une conversion au dernier clic ignore tout le parcours qui a précédé — les modèles multi-touch tentent de répartir le mérite plus honnêtement."
+pillar: "data-analysis"
+entryNumber: 65
+publishDate: 2026-02-18
+---
+
+Un client voit une publicité display, clique sur un email quelques jours plus tard, puis
+convertit finalement via une recherche Google. L'attribution *dernier clic*, encore très
+répandue par simplicité, attribue 100 % du mérite à la recherche Google — en ignorant
+complètement les deux interactions précédentes qui ont probablement contribué à la décision.
+
+## Les modèles heuristiques simples
+
+```python
+# Dernier clic : tout le mérite au dernier point de contact
+# Premier clic : tout le mérite au premier point de contact
+# Linéaire : mérite réparti également entre tous les points de contact
+poids_lineaire = 1 / nombre_points_contact
+```
+
+Ces règles sont faciles à implémenter et à expliquer, mais reposent sur une hypothèse arbitraire
+plutôt que sur un lien démontré avec la conversion réelle.
+
+## Le modèle basé sur les données (*data-driven attribution*)
+
+Une approche plus rigoureuse compare les parcours qui ont mené à une conversion à ceux qui n'y
+ont pas mené, et estime la contribution marginale de chaque canal en observant l'effet de sa
+présence ou de son absence dans le parcours — une logique proche des valeurs de Shapley utilisées
+en théorie des jeux :
+
+```python
+# Principe simplifié : contribution marginale d'un canal
+# = performance moyenne des parcours avec ce canal
+# - performance moyenne des parcours équivalents sans ce canal
+```
+
+Cette approche demande un volume de données conséquent pour être fiable — sur un petit nombre de
+conversions, la contribution estimée de chaque canal reste très instable.
+
+## Le problème que l'attribution ne résout jamais complètement
+
+Aucun modèle d'attribution ne peut observer le contrefactuel exact — ce qui se serait passé si
+le client n'avait pas vu telle publicité. Toute méthode reste une approximation basée sur des
+corrélations dans les parcours observés, pas une preuve causale de l'effet de chaque canal. Les
+tests d'incrémentalité (couper un canal pour un groupe test et comparer) restent la méthode la
+plus proche d'une vraie mesure causale, au prix d'un vrai coût opérationnel à mettre en place.
+
+## Le piège des cookies tiers en déclin
+
+Les modèles d'attribution multi-touch reposent historiquement sur le suivi cross-site via
+cookies tiers, de plus en plus restreint (Safari, Firefox, et bientôt Chrome). Une part
+croissante des parcours devient invisible pour l'attribution classique, ce qui pousse vers des
+approches probabilistes ou des mesures d'incrémentalité moins dépendantes du tracking individuel
+précis.

@@ -1,0 +1,78 @@
+---
+title: "Orchestrer des pipelines avec Dagster : une alternative à Airflow"
+description: "Airflow orchestre des tâches ; Dagster raisonne d'abord en termes d'actifs de données, un changement de perspective qui simplifie certains problèmes qu'Airflow gère assez mal."
+pillar: "big-data-cloud"
+entryNumber: 93
+publishDate: 2026-08-18
+---
+
+Airflow modélise un pipeline comme un graphe de tâches à exécuter dans un ordre donné. Dagster
+part d'une autre unité de base : l'actif de données (*asset*) — la table, le fichier, ou le
+modèle produit par le pipeline — ce qui change la façon de raisonner sur les dépendances et la
+fraîcheur des données.
+
+## Penser en actifs plutôt qu'en tâches
+
+```python
+from dagster import asset
+
+@asset
+def transactions_brutes():
+    return extraire_transactions()
+
+@asset
+def transactions_nettoyees(transactions_brutes):
+    return nettoyer(transactions_brutes)
+
+@asset
+def modele_entraine(transactions_nettoyees):
+    return entrainer(transactions_nettoyees)
+```
+
+La dépendance entre actifs se déclare simplement en paramètre de fonction — Dagster construit le
+graphe de dépendances automatiquement, sans qu'on ait besoin d'écrire explicitement `>>` comme
+dans Airflow.
+
+## La fraîcheur des données, un concept natif
+
+```python
+from dagster import AssetIn, FreshnessPolicy
+
+@asset(freshness_policy=FreshnessPolicy(maximum_lag_minutes=60))
+def tableau_de_bord(transactions_nettoyees):
+    return construire_tableau(transactions_nettoyees)
+```
+
+Dagster peut suivre et alerter si un actif de données devient "périmé" par rapport à une
+politique de fraîcheur définie — une notion qui existe dans Airflow surtout de façon implicite,
+à travers le calendrier d'exécution des DAGs, plutôt que comme une propriété explicite de la
+donnée produite.
+
+## Le typage et la validation intégrés
+
+```python
+from dagster import asset, Output
+
+@asset
+def transactions_validees(transactions_brutes) -> Output[pd.DataFrame]:
+    assert transactions_brutes["montant"].min() >= 0, "Montant négatif détecté"
+    return Output(transactions_brutes)
+```
+
+Dagster encourage à typer et valider explicitement les sorties de chaque étape, avec une
+intégration plus naturelle des tests que l'approche historiquement plus permissive d'Airflow.
+
+## Pourquoi Airflow reste malgré tout très répandu
+
+Airflow bénéficie d'un écosystème plus mature, de beaucoup plus d'intégrations tierces déjà
+prêtes à l'emploi, et d'une communauté nettement plus large après une décennie d'existence.
+Dagster, plus jeune, offre un modèle de programmation souvent jugé plus clair pour des pipelines
+orientés données plutôt que purement orientés tâches — mais avec un écosystème encore en
+construction sur certains connecteurs spécifiques.
+
+## Le vrai critère de choix
+
+Une équipe qui pense déjà son pipeline en termes de tables et de fraîcheur de données trouvera
+Dagster plus naturel dès le départ. Une équipe avec un existant conséquent sur Airflow, ou qui a
+besoin d'une intégration spécifique que seul Airflow propose aujourd'hui, n'a généralement pas
+de raison suffisante de migrer uniquement pour ce changement de paradigme.

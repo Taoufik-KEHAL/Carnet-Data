@@ -1,0 +1,64 @@
+---
+title: "Optimiser les requêtes BigQuery pour réduire les coûts et la latence"
+description: "Sur un modèle de facturation au volume scanné, une requête mal écrite ne fait pas que ralentir — elle coûte littéralement de l'argent à chaque exécution."
+pillar: "big-data-cloud"
+entryNumber: 58
+publishDate: 2026-01-04
+---
+
+BigQuery facture (dans son modèle à la demande) selon le volume de données scanné par une
+requête, pas selon le temps de calcul. Cette particularité change complètement ce qu'"optimiser
+une requête" veut dire par rapport à une base de données classique.
+
+## Ne jamais faire `SELECT *`
+
+```sql
+-- Scanne toutes les colonnes de la table, même celles non utilisées
+SELECT * FROM ventes WHERE date > '2026-01-01';
+
+-- Ne scanne que les colonnes réellement nécessaires
+SELECT montant, client_id FROM ventes WHERE date > '2026-01-01';
+```
+
+BigQuery est un moteur columnar : il ne lit que les colonnes demandées. Une table à 50 colonnes
+interrogée avec `SELECT *` coûte potentiellement 50 fois plus qu'une requête qui n'en utilise
+que trois.
+
+## Le partitionnement, le levier le plus rentable
+
+```sql
+CREATE TABLE ventes_partitionnees
+PARTITION BY DATE(date_transaction)
+AS SELECT * FROM ventes;
+```
+
+Une table partitionnée par date permet à une requête filtrée sur cette date de ne scanner que la
+partition concernée, plutôt que la table entière. Sur une table de plusieurs années d'historique,
+filtrer sur les 30 derniers jours d'une table partitionnée peut réduire le volume scanné, et
+donc le coût, de plusieurs ordres de grandeur par rapport à la même table non partitionnée.
+
+## Le clustering, en complément
+
+```sql
+CREATE TABLE ventes_optimisees
+PARTITION BY DATE(date_transaction)
+CLUSTER BY client_id
+AS SELECT * FROM ventes;
+```
+
+Le clustering trie physiquement les données au sein de chaque partition selon une ou plusieurs
+colonnes — utile quand les requêtes filtrent fréquemment sur ces colonnes en plus de la date,
+par exemple pour retrouver rapidement l'historique d'un client donné.
+
+## Estimer le coût avant d'exécuter
+
+L'interface BigQuery affiche une estimation du volume scanné avant même de lancer la requête —
+un réflexe simple à prendre pour repérer une requête anormalement coûteuse avant qu'elle ne
+s'exécute, plutôt qu'en découvrant l'impact sur la facture en fin de mois.
+
+## Les vues matérialisées pour les requêtes répétées
+
+Une agrégation recalculée à l'identique plusieurs fois par jour (un tableau de bord rafraîchi en
+continu, par exemple) gagne à être remplacée par une vue matérialisée, mise à jour
+automatiquement et bien moins coûteuse à interroger que de relancer la requête complète à chaque
+consultation.

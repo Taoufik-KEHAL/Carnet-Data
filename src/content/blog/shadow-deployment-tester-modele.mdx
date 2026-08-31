@@ -1,0 +1,56 @@
+---
+title: "Shadow deployment : tester un modèle sans risquer la production"
+description: "Faire tourner un nouveau modèle sur du trafic réel, en parallèle de l'ancien, sans qu'aucune de ses prédictions n'affecte jamais une seule décision réelle."
+pillar: "mlops"
+entryNumber: 51
+publishDate: 2025-11-20
+---
+
+L'A/B testing expose une partie des utilisateurs réels à un nouveau modèle, avec le risque
+assumé qu'il se comporte moins bien que prévu. Le shadow deployment va plus loin dans la
+prudence : le nouveau modèle reçoit exactement le même trafic que l'ancien, mais ses
+prédictions ne sont jamais utilisées pour une décision réelle — seulement enregistrées pour
+comparaison.
+
+## Le montage technique
+
+```python
+def traiter_requete(features):
+    prediction_officielle = modele_production.predict(features)
+
+    try:
+        prediction_shadow = modele_candidat.predict(features)
+        logger_comparaison(features, prediction_officielle, prediction_shadow)
+    except Exception as e:
+        logger_erreur_shadow(e)  # une erreur du modèle shadow ne doit jamais impacter la prod
+
+    return prediction_officielle
+```
+
+Le point critique : une erreur ou une lenteur du modèle candidat ne doit jamais retarder ou
+casser la réponse envoyée à l'utilisateur réel. Le shadow tourne en asynchrone ou avec un
+timeout strict, isolé du chemin critique.
+
+## Ce que ça permet de vérifier avant un vrai A/B test
+
+- La latence réelle du nouveau modèle sous charge de production, pas seulement en environnement
+  de test.
+- La stabilité du service sur des volumes et des cas limites que le jeu de test hors ligne n'a
+  pas forcément couverts.
+- L'écart de prédiction entre ancien et nouveau modèle sur les mêmes données réelles, avant
+  d'exposer qui que ce soit au risque d'un résultat différent.
+
+## La limite du shadow deployment
+
+Comparer les prédictions ne dit rien sur laquelle des deux est la meilleure quand elles
+divergent — pour ça, il faut la vérité terrain, qui n'est disponible qu'après coup pour beaucoup
+de problèmes de risque. Le shadow deployment valide la fiabilité opérationnelle du nouveau
+modèle, pas encore sa performance prédictive réelle en conditions d'usage.
+
+## Pourquoi ne pas simplement tester hors ligne
+
+Un jeu de test hors ligne, aussi soigné soit-il, ne capture jamais parfaitement la distribution
+et le volume du trafic réel. Le shadow deployment est l'étape intermédiaire qui réduit le risque
+avant un A/B test réel : si le modèle candidat plante ou répond trop lentement en shadow, il n'a
+jamais eu la moindre chance d'affecter un utilisateur — contrairement à un A/B test lancé trop
+tôt.

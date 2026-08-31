@@ -1,0 +1,62 @@
+---
+title: "Tarification à la sinistralité vs tarification par variables (GLM)"
+description: "Fixer un tarif selon l'historique personnel de sinistres d'un client, ou selon des caractéristiques prédictives générales — deux logiques de tarification qui coexistent rarement sans tension."
+pillar: "risk-modeling"
+entryNumber: 79
+publishDate: 2026-05-20
+---
+
+Deux logiques de tarification coexistent en assurance, et elles répondent à des questions
+différentes plutôt que d'être simplement deux méthodes concurrentes pour la même chose.
+
+## La tarification à la sinistralité (bonus-malus)
+
+Le principe : ajuster le tarif d'un client individuel selon son propre historique de sinistres,
+indépendamment de ses caractéristiques de départ. Le système bonus-malus automobile en est
+l'exemple le plus connu — chaque année sans sinistre réduit la prime, chaque sinistre responsable
+l'augmente, selon une formule réglementée.
+
+```python
+coefficient = coefficient_precedent * 0.95  # bonus après une année sans sinistre
+coefficient = min(coefficient_precedent * 1.25, 3.5)  # malus après un sinistre responsable
+```
+
+Cette approche récompense et pénalise le comportement individuel observé, mais réagit lentement
+— elle ne dit rien sur le risque d'un nouveau client sans historique.
+
+## La tarification par variables (GLM)
+
+Le GLM prédit la fréquence et la sévérité attendues à partir de caractéristiques observables au
+moment de la souscription — âge, zone géographique, type de véhicule, profession — avant même
+qu'un historique de sinistres existe :
+
+```python
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+modele = smf.glm(
+    "nb_sinistres ~ age + zone + puissance_vehicule",
+    data=df,
+    family=sm.families.Poisson(),
+    offset=np.log(df["exposition"]),
+).fit()
+```
+
+Cette approche capture des différences de risque dès la souscription, mais peut être perçue
+comme moins "méritocratique" — elle tarife sur des caractéristiques que le client ne contrôle
+pas, plutôt que sur son comportement réel.
+
+## Pourquoi les deux coexistent en pratique
+
+Le GLM établit le tarif de base à la souscription, quand aucun historique individuel n'existe
+encore. Le bonus-malus ajuste ensuite ce tarif dans le temps selon le comportement réel observé.
+Les deux logiques se complètent plus qu'elles ne s'opposent : l'une comble l'absence
+d'information au départ, l'autre affine avec l'information accumulée ensuite.
+
+## La tension réglementaire
+
+Certaines variables prédictives issues d'un GLM (âge, sexe dans certaines juridictions) sont
+interdites ou encadrées, précisément parce qu'elles peuvent produire des tarifs perçus comme
+discriminatoires malgré leur pouvoir prédictif réel — un rappel que la tarification en assurance
+ne se limite jamais à une optimisation statistique pure, elle reste encadrée par des
+considérations d'équité et de conformité qui priment sur la performance du modèle.

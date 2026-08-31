@@ -1,0 +1,53 @@
+---
+title: "Stress testing climatique pour les portefeuilles d'assurance"
+description: "Les modèles de risque climatique posent un problème que le stress testing financier classique ne rencontre pas : l'historique disponible ne représente plus le futur."
+pillar: "risk-modeling"
+entryNumber: 64
+publishDate: 2026-02-12
+---
+
+Un stress test financier classique rejoue des scénarios historiques ou hypothétiques sur un
+portefeuille actuel, en supposant implicitement que la distribution des risques futurs
+ressemble à celle du passé. Le risque climatique casse cette hypothèse : la fréquence et
+l'intensité des événements extrêmes (inondations, tempêtes, sécheresses) évoluent dans le temps,
+souvent plus vite que ne le suggèrent les décennies de données historiques disponibles.
+
+## Deux horizons de risque climatique à distinguer
+
+Le risque physique concerne l'impact direct des événements climatiques sur les biens assurés —
+plus de sinistres, de coûts par sinistre plus élevés dans certaines zones géographiques. Le
+risque de transition concerne l'impact économique de la transition vers une économie bas
+carbone sur les actifs détenus par l'assureur (des investissements dans des secteurs qui perdent
+de la valeur face à une réglementation plus stricte, par exemple).
+
+## Modéliser un risque qui n'est pas stationnaire
+
+```python
+# Approche naïve : biaisée si le climat change
+frequence_historique = sinistres_climatiques.mean()
+
+# Approche ajustée : intègre une tendance
+import statsmodels.api as sm
+
+modele_tendance = sm.OLS(frequence_annuelle, sm.add_constant(annees)).fit()
+projection_2030 = modele_tendance.predict([1, 2030])
+```
+
+Utiliser directement la fréquence historique moyenne comme si elle allait rester stable ignore
+une tendance qui, pour beaucoup de risques climatiques, est déjà statistiquement significative
+sur les dernières décennies.
+
+## S'appuyer sur des scénarios climatiques externes
+
+Plutôt que d'extrapoler seul une tendance à partir de données internes limitées, les scénarios
+du GIEC (RCP, SSP) ou des modèles catastrophiques spécialisés fournissent des projections
+physiques (élévation du niveau de la mer, fréquence d'événements extrêmes) que le modèle de
+risque assurantiel peut ensuite traduire en impact financier sur le portefeuille spécifique de
+l'assureur.
+
+## Ce que ça implique pour la tarification
+
+Un portefeuille concentré dans une zone dont le risque physique augmente structurellement ne
+peut pas continuer à être tarifé sur la base d'un historique qui ne reflète plus le risque
+futur, sous peine de sous-tarifer systématiquement — un problème qui devient visible seulement
+au moment où les sinistres dépassent nettement les provisions constituées.

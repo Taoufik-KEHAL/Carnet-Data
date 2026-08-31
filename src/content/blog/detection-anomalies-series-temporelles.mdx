@@ -1,0 +1,63 @@
+---
+title: "Détection d'anomalies dans des séries temporelles"
+description: "Une valeur constitue une anomalie ou non selon le contexte temporel qui l'entoure — un pic de trafic normal un vendredi soir serait suspect un mardi à 4h du matin."
+pillar: "data-analysis"
+entryNumber: 60
+publishDate: 2026-01-17
+---
+
+Détecter une anomalie dans une série temporelle est plus subtil que détecter une valeur
+aberrante dans des données statiques : la même valeur peut être parfaitement normale à un
+moment et clairement anormale à un autre, selon la tendance et la saisonnalité attendues à cet
+instant précis.
+
+## La méthode la plus simple : les résidus après décomposition
+
+```python
+from statsmodels.tsa.seasonal import seasonal_decompose
+import numpy as np
+
+decomposition = seasonal_decompose(serie, period=7)
+residus = decomposition.resid.dropna()
+
+seuil = 3 * residus.std()
+anomalies = residus[abs(residus) > seuil]
+```
+
+En retirant tendance et saisonnalité, ce qui reste (le résidu) devrait fluctuer de façon
+prévisible autour de zéro. Un résidu anormalement grand signale un écart par rapport au
+comportement attendu à cette période précise, pas juste une valeur numériquement élevée.
+
+## Les bandes de confiance dynamiques
+
+Plutôt qu'un seuil fixe, une bande de confiance qui s'élargit ou se resserre selon la volatilité
+récente de la série s'adapte mieux aux séries dont le niveau de bruit change dans le temps :
+
+```python
+fenetre = serie.rolling(window=30)
+borne_haute = fenetre.mean() + 3 * fenetre.std()
+borne_basse = fenetre.mean() - 3 * fenetre.std()
+
+anomalies = serie[(serie > borne_haute) | (serie < borne_basse)]
+```
+
+## Isolation Forest pour des séries multivariées
+
+Quand plusieurs métriques doivent être surveillées ensemble (trafic, latence, taux d'erreur, par
+exemple), une anomalie peut apparaître dans leur relation plutôt que dans une seule métrique
+isolée :
+
+```python
+from sklearn.ensemble import IsolationForest
+
+detecteur = IsolationForest(contamination=0.01)
+scores = detecteur.fit_predict(df[["trafic", "latence", "taux_erreur"]])
+```
+
+## Le vrai piège : confondre anomalie et changement de régime
+
+Une hausse de trafic durable après une campagne marketing réussie n'est pas une anomalie à
+corriger, c'est un changement de régime auquel le modèle doit s'adapter. Un système de détection
+qui continue à signaler indéfiniment ce nouveau niveau comme anormal, sans jamais réajuster sa
+référence, finit par noyer les vraies alertes sous des faux positifs — le modèle doit être
+réentraîné ou adapté périodiquement pour intégrer ces évolutions légitimes.

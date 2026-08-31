@@ -1,0 +1,60 @@
+---
+title: "Apprentissage semi-supervisé : quand on manque de données labellisées"
+description: "Labelliser manuellement des dizaines de milliers d'exemples coûte cher et prend du temps — l'apprentissage semi-supervisé exploite les exemples non labellisés qui, eux, sont presque toujours abondants."
+pillar: "ml-fondamentaux"
+entryNumber: 92
+publishDate: 2026-08-12
+---
+
+Beaucoup de projets ont accès à énormément de données brutes mais très peu d'exemples
+labellisés — labelliser demande un travail humain qui coûte du temps et de l'argent. L'apprentissage
+semi-supervisé cherche à extraire de la valeur des données non labellisées, sans exiger qu'elles
+soient toutes annotées.
+
+## Le pseudo-labelling, l'approche la plus simple
+
+```python
+from sklearn.semi_supervised import SelfTrainingClassifier
+from sklearn.svm import SVC
+
+# y contient -1 pour les exemples non labellisés
+modele = SelfTrainingClassifier(SVC(probability=True))
+modele.fit(X, y)
+```
+
+Le principe : entraîner un modèle initial sur les quelques exemples labellisés disponibles,
+l'utiliser pour prédire des labels sur les exemples non labellisés, ne conserver que les
+prédictions les plus confiantes comme nouveaux exemples d'entraînement, et répéter. Le risque :
+si le modèle initial se trompe avec confiance, ces erreurs se propagent et s'amplifient au fil
+des itérations.
+
+## L'hypothèse de continuité, ce qui rend l'approche valide
+
+L'apprentissage semi-supervisé repose sur une hypothèse implicite : des points proches dans
+l'espace des features ont probablement le même label. Si cette hypothèse ne tient pas pour le
+problème en question (des points proches peuvent appartenir à des classes différentes), les
+techniques semi-supervisées n'apportent pas de bénéfice réel et peuvent même dégrader la
+performance par rapport à un entraînement purement supervisé sur les seules données labellisées.
+
+## Le pré-entraînement auto-supervisé, une alternative plus robuste
+
+```python
+# Principe : pré-entraîner sur une tâche auxiliaire sans label
+# (prédire un mot masqué, reconstruire une image partiellement cachée)
+# puis fine-tuner sur la vraie tâche avec les quelques labels disponibles
+```
+
+Plutôt que de générer des pseudo-labels potentiellement bruités, l'auto-supervision entraîne le
+modèle à résoudre une tâche construite automatiquement à partir des données brutes elles-mêmes
+(masquer une partie de l'entrée et la faire prédire). C'est l'approche derrière la plupart des
+grands modèles de langage et de vision pré-entraînés modernes, avant leur fine-tuning sur une
+tâche spécifique avec peu de données labellisées.
+
+## Quand ça vaut vraiment le coup
+
+L'apprentissage semi-supervisé apporte le plus de valeur quand les données non labellisées sont
+abondantes et peu coûteuses à obtenir, et quand labelliser manuellement reste cher ou lent
+(expertise médicale requise, volume trop important). Sur un problème où labelliser quelques
+centaines d'exemples supplémentaires est rapide et peu coûteux, l'investissement dans une
+méthode semi-supervisée plus complexe à mettre en œuvre et à valider rapporte souvent moins que
+simplement labelliser un peu plus.

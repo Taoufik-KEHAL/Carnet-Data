@@ -1,0 +1,52 @@
+---
+title: "Scorecard de crédit : construire et documenter un modèle scorecard"
+description: "Le format scorecard reste omniprésent dans le crédit bancaire pour une raison précise : un chargé de clientèle peut expliquer un refus sans avoir besoin d'un data scientist à côté de lui."
+pillar: "risk-modeling"
+entryNumber: 49
+publishDate: 2025-11-07
+---
+
+Un scorecard transforme une régression logistique en un système de points additionnés,
+compréhensible par n'importe qui sans formation statistique. C'est cette lisibilité, plus que la
+performance brute, qui explique sa longévité dans le crédit bancaire.
+
+## De la régression logistique aux points
+
+La méthode part d'une régression logistique sur des variables discrétisées en tranches
+(*binning*), puis convertit chaque coefficient en un nombre de points :
+
+```python
+import numpy as np
+
+facteur = 20 / np.log(2)  # PDO (points to double the odds), convention courante
+decalage = 500 - facteur * np.log(50)  # score de référence pour un odds de référence
+
+points_par_tranche = facteur * coefficient_logit
+```
+
+Le résultat : un client avec un revenu dans telle tranche, une ancienneté dans telle autre, et
+un historique de paiement donné, obtient un score final qui est simplement la somme de points
+associés à chacune de ses caractéristiques.
+
+## Pourquoi le format compte autant que la performance
+
+Un score de 620 avec le détail "− 15 points pour absence d'historique de crédit, + 40 points
+pour l'ancienneté professionnelle" donne au chargé de clientèle, et potentiellement au client
+lui-même, une explication actionnable. Un score XGBoost à 0,73 de probabilité de défaut n'offre
+pas cette transparence sans un travail d'explicabilité supplémentaire (SHAP, LIME), qui reste
+une approximation a posteriori plutôt qu'une lecture directe du modèle.
+
+## Le binning n'est pas un détail technique mineur
+
+Le découpage en tranches doit produire une relation monotone avec le risque — un tableau où le
+risque ne remonte pas de façon incohérente d'une tranche à l'autre serait très difficile à
+justifier auprès d'un régulateur. Le choix des seuils de coupure est souvent autant un exercice
+métier que statistique, arbitré avec les équipes de risque.
+
+## La documentation, partie intégrante du livrable
+
+Un scorecard sans documentation de sa construction — variables testées et écartées, seuils de
+binning, période et population d'entraînement — perd une grande partie de son intérêt
+réglementaire. La traçabilité de chaque décision de modélisation compte ici autant que le score
+final, puisque c'est elle qui permet de justifier le modèle plusieurs années après sa mise en
+production, souvent face à un audit externe.

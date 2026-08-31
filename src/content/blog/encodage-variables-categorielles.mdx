@@ -1,0 +1,67 @@
+---
+title: "Encodage des variables catégorielles : one-hot, target, ordinal"
+description: "Un modèle ne comprend que des nombres — transformer une catégorie en variable numérique est une étape obligatoire, mais loin d'être neutre sur le résultat final."
+pillar: "ml-fondamentaux"
+entryNumber: 57
+publishDate: 2025-12-29
+---
+
+Une variable comme "catégorie de produit" ou "code postal" doit être transformée en nombres
+avant d'entrer dans la plupart des modèles. Le choix de la méthode d'encodage a un impact réel
+sur la performance, pas seulement sur la forme des données.
+
+## One-hot encoding : une colonne par catégorie
+
+```python
+import pandas as pd
+
+df_encode = pd.get_dummies(df, columns=["categorie"])
+```
+
+Chaque catégorie devient une colonne binaire (0 ou 1). Simple et sans hypothèse d'ordre entre
+catégories, mais explose en dimension dès que la variable a une cardinalité élevée — cent
+catégories deviennent cent colonnes, souvent creuses.
+
+## Ordinal encoding : quand un ordre existe réellement
+
+```python
+from sklearn.preprocessing import OrdinalEncoder
+
+encoder = OrdinalEncoder(categories=[["faible", "moyen", "élevé"]])
+df["niveau_encode"] = encoder.fit_transform(df[["niveau"]])
+```
+
+Convertit chaque catégorie en un entier respectant un ordre logique. À réserver aux variables
+qui ont un ordre réel (un niveau, une tranche d'âge) — appliquer un ordinal encoding à une
+variable sans ordre naturel (une couleur, une ville) introduit une fausse relation numérique que
+le modèle va essayer d'exploiter.
+
+## Target encoding : la fréquence de la cible par catégorie
+
+```python
+moyennes = df.groupby("code_postal")["defaut_paiement"].mean()
+df["code_postal_encode"] = df["code_postal"].map(moyennes)
+```
+
+Remplace chaque catégorie par la moyenne de la variable cible observée pour cette catégorie —
+utile pour les variables à haute cardinalité (code postal, identifiant produit), là où le
+one-hot exploserait en dimension. Le risque : sans régularisation ni validation croisée
+appropriée, cette méthode fait fuiter de l'information de la cible dans les features, gonflant
+artificiellement la performance mesurée.
+
+```python
+from sklearn.model_selection import KFold
+
+# Calculer le target encoding séparément par fold pour éviter la fuite
+kf = KFold(n_splits=5)
+for train_idx, val_idx in kf.split(df):
+    moyennes_fold = df.iloc[train_idx].groupby("code_postal")["defaut_paiement"].mean()
+    df.loc[val_idx, "code_postal_encode"] = df.loc[val_idx, "code_postal"].map(moyennes_fold)
+```
+
+## Le cas des modèles à base d'arbres
+
+XGBoost et LightGBM acceptent nativement des catégories encodées en entiers simples sans
+supposer d'ordre, grâce à leur façon de rechercher des seuils de coupure — un luxe que n'ont pas
+les modèles linéaires, qui interpréteraient un entier comme une vraie grandeur numérique
+ordonnée.

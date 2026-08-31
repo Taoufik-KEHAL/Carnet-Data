@@ -1,0 +1,50 @@
+---
+title: "Comprendre le CAP theorem pour les bases de données distribuées"
+description: "Face à une coupure réseau entre deux centres de données, un système distribué doit choisir : rester disponible avec un risque d'incohérence, ou rester cohérent en refusant de répondre."
+pillar: "big-data-cloud"
+entryNumber: 78
+publishDate: 2026-05-13
+---
+
+Le théorème CAP énonce qu'un système distribué ne peut garantir simultanément que deux des trois
+propriétés suivantes : cohérence (*consistency*), disponibilité (*availability*), et tolérance au
+partitionnement réseau (*partition tolerance*). Comprendre ce compromis explique pourquoi
+différentes bases de données font des choix architecturaux très différents.
+
+## Le partitionnement réseau n'est pas optionnel
+
+Dans un système véritablement distribué (plusieurs machines, potentiellement plusieurs centres
+de données), une coupure de communication entre certains nœuds finira par se produire —
+matériel réseau défaillant, latence excessive, coupure de fibre. La tolérance au partitionnement
+n'est donc pas un choix de conception, c'est une contrainte imposée par la réalité physique. Le
+vrai choix se joue entre cohérence et disponibilité *pendant* cette coupure.
+
+```
+Pendant un partitionnement réseau :
+CP (cohérence + tolérance) : le système refuse de répondre plutôt que de risquer une réponse incohérente
+AP (disponibilité + tolérance) : le système continue de répondre, au risque de données temporairement incohérentes entre nœuds
+```
+
+## Des exemples concrets de chaque côté
+
+Des bases comme MongoDB (en configuration par défaut) ou les bases relationnelles distribuées
+avec réplication synchrone tendent vers CP — en cas de partition, certains nœuds refusent
+d'écrire plutôt que de créer une incohérence. Des bases comme Cassandra ou DynamoDB tendent vers
+AP — le système continue à accepter des écritures sur les nœuds accessibles, quitte à devoir
+réconcilier des versions divergentes une fois la connexion rétablie.
+
+## Pourquoi ça compte pour un choix d'architecture data
+
+Un système de recommandation qui répond une suggestion légèrement obsolète pendant quelques
+secondes n'a généralement aucune conséquence grave — la disponibilité prime, AP convient bien. Un
+système de gestion de stock ou de solde bancaire qui accepterait une incohérence temporaire,
+même brève, pourrait créer des situations bien plus problématiques (survente, double dépense) —
+la cohérence prime, CP s'impose.
+
+## La cohérence éventuelle, un compromis intermédiaire
+
+Beaucoup de systèmes AP modernes offrent une cohérence *éventuelle* (*eventual consistency*) :
+les nœuds finissent par converger vers le même état après un délai, sans garantie de cohérence
+immédiate. Ce compromis convient à de nombreux cas d'usage analytiques et de recommandation, où
+un léger délai de propagation reste largement acceptable face au gain de disponibilité et de
+performance qu'il permet.

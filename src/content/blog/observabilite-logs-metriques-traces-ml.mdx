@@ -1,0 +1,66 @@
+---
+title: "Observabilité : logs, métriques et traces pour un service ML"
+description: "Le monitoring de la dérive des données répond à \"le modèle se dégrade-t-il ?\". L'observabilité répond à une question différente et tout aussi nécessaire : \"pourquoi ce service a-t-il planté à 3h du matin ?\""
+pillar: "mlops"
+entryNumber: 66
+publishDate: 2026-02-25
+---
+
+Un service de scoring qui répond correctement 99,9 % du temps a quand même des incidents. Sans
+observabilité, diagnostiquer l'origine d'un incident précis revient à chercher à l'aveugle — trois
+signaux complémentaires évitent ça.
+
+## Les logs : ce qui s'est passé, en détail
+
+```python
+import logging
+
+logger = logging.getLogger("scoring-api")
+
+def predict(features):
+    logger.info("Prédiction demandée", extra={"client_id": features.get("client_id")})
+    try:
+        resultat = modele.predict(features)
+        logger.info("Prédiction réussie", extra={"proba": resultat})
+        return resultat
+    except Exception as e:
+        logger.error("Échec de prédiction", extra={"erreur": str(e)}, exc_info=True)
+        raise
+```
+
+Des logs structurés (au format JSON, avec des champs cohérents) plutôt que du texte libre
+permettent de filtrer et d'agréger efficacement — chercher "toutes les erreurs pour ce client
+sur les dernières 24h" devient une requête simple plutôt qu'une recherche textuelle approximative.
+
+## Les métriques : l'état de santé agrégé dans le temps
+
+```python
+from prometheus_client import Counter, Histogram
+
+requetes_totales = Counter("predictions_total", "Nombre total de prédictions")
+latence = Histogram("latence_prediction_secondes", "Latence de prédiction")
+
+@latence.time()
+def predict_avec_metriques(features):
+    requetes_totales.inc()
+    return modele.predict(features)
+```
+
+Contrairement aux logs (un événement à la fois), les métriques agrègent — taux d'erreur sur 5
+minutes, latence moyenne, nombre de requêtes par seconde — et alimentent naturellement des
+tableaux de bord et des alertes automatiques.
+
+## Les traces : suivre une requête à travers plusieurs services
+
+Quand une prédiction traverse plusieurs services (une API qui appelle un service de features,
+qui appelle lui-même le modèle), une trace distribuée relie tous ces appels sous un identifiant
+commun — indispensable pour localiser où, dans une chaîne de cinq services, une latence
+anormale a été introduite.
+
+## Pourquoi les trois ensemble, pas un seul
+
+Les métriques alertent qu'un problème existe ("le taux d'erreur a doublé"). Les traces montrent
+où dans le système ça se produit. Les logs donnent le détail exact de ce qui a échoué pour un
+cas précis. Avoir seulement des métriques, c'est savoir qu'un incendie existe sans savoir où ;
+avoir seulement des logs, c'est avoir toutes les preuves sans jamais avoir été alerté qu'il
+fallait les chercher.
