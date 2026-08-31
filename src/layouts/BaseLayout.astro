@@ -1,6 +1,7 @@
 ---
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import CookieConsent from '../components/CookieConsent.astro';
 import '../styles/global.css';
 
 interface Props {
@@ -18,13 +19,30 @@ const ogImageURL = new URL('/og-image.png', Astro.site);
 <!doctype html>
 <html lang="fr">
   <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1EBKRKSDP7" is:inline></script>
-    <script is:inline>
+    <!-- Google tag (gtag.js) — only actually loaded once cookie consent is granted, see CookieConsent.astro -->
+    <script is:inline define:vars={{ gaId: 'G-1EBKRKSDP7' }}>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-1EBKRKSDP7');
+      window.gtag = gtag;
+
+      window.__loadGA = function () {
+        if (window.__gaLoaded) return;
+        window.__gaLoaded = true;
+        var s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+        document.head.appendChild(s);
+        gtag('js', new Date());
+        gtag('config', gaId);
+      };
+
+      try {
+        if (localStorage.getItem('cookie-consent') === 'granted') {
+          window.__loadGA();
+        }
+      } catch (e) {
+        // localStorage unavailable — treat as no consent, GA simply won't load this visit
+      }
     </script>
 
     <meta charset="UTF-8" />
@@ -62,5 +80,6 @@ const ogImageURL = new URL('/og-image.png', Astro.site);
       <slot />
     </main>
     <Footer />
+    <CookieConsent />
   </body>
 </html>
