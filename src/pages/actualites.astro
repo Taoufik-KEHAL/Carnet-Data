@@ -1,0 +1,68 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { fetchActualites } from '../lib/actualites';
+
+const actualites = await fetchActualites();
+const dateFmt = (d: Date) =>
+  new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+---
+<BaseLayout
+  title="Actualités"
+  description="Une sélection d'actualités récentes en Machine Learning, MLOps, Big Data et Data Science, agrégées depuis des blogs techniques externes."
+>
+  <p class="eyebrow">Actualités</p>
+  <h1>Ce qui se dit ailleurs</h1>
+  <p class="dek">
+    Une sélection d'articles récents publiés par des blogs techniques externes (Google AI,
+    AWS, Databricks, KDnuggets...) — pas du contenu de Carnet Data, juste une veille pratique
+    sur le secteur, mise à jour quotidiennement.
+  </p>
+
+  <section class="entries">
+    {actualites.map((item) => (
+      <a class="entry" href={item.link} target="_blank" rel="noopener noreferrer">
+        <div class="entry__body">
+          <p class="entry__meta">{item.source} · {dateFmt(item.pubDate)}</p>
+          <h2>{item.title}</h2>
+          {item.contentSnippet && <p>{item.contentSnippet}…</p>}
+        </div>
+      </a>
+    ))}
+    {actualites.length === 0 && (
+      <p class="empty">
+        Aucune actualité disponible pour le moment — les sources externes sont peut-être
+        temporairement indisponibles. Réessayez plus tard.
+      </p>
+    )}
+  </section>
+</BaseLayout>
+
+<style>
+  .entries {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 1.5em;
+  }
+  .entry {
+    display: block;
+    padding: 20px;
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    background: var(--card);
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .entry:hover { border-color: var(--red); }
+  .entry__meta {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--teal);
+    margin: 0 0 0.3em;
+  }
+  .entry h2 { font-size: 1.15rem; margin: 0 0 0.3em; }
+  .entry p:last-child { margin: 0; color: var(--ink-soft); font-size: 0.92rem; }
+  .empty { color: var(--ink-soft); font-style: italic; }
+</style>

@@ -1,0 +1,19 @@
+name: Nightly rebuild (actualités refresh)
+
+on:
+  schedule:
+    # 04:00 UTC every day — refreshes the /actualites page with new RSS content
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger-netlify-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build hook
+        run: |
+          if [ -z "${{ secrets.NETLIFY_BUILD_HOOK_URL }}" ]; then
+            echo "::error::NETLIFY_BUILD_HOOK_URL secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          curl -sS -X POST "${{ secrets.NETLIFY_BUILD_HOOK_URL }}"
