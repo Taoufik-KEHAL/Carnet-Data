@@ -12,37 +12,35 @@ const nav = [
 ];
 ---
 <header class="site-header">
-  <div class="site-header__inner">
+  <div class="site-header__top">
     <a href="/" class="brand">
       <span class="brand__mark">◆</span> Carnet Data
     </a>
-    <nav>
-      <ul>
+  </div>
+  <nav class="site-nav" aria-label="Navigation principale">
+    <div class="site-nav__inner">
+      <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-menu">
+        <span></span><span></span><span></span>
+      </button>
+      <ul id="site-menu">
         {nav.map((item) => (
           <li><a href={item.href}>{item.label}</a></li>
         ))}
       </ul>
-    </nav>
-  </div>
+    </div>
+  </nav>
 </header>
 
 <style>
   .site-header {
-    border-bottom: 1px solid var(--paper-line);
-    background: var(--paper);
     position: sticky;
     top: 0;
     z-index: 10;
+    background: var(--paper);
   }
-  .site-header__inner {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 18px 24px 18px calc(min(64px, 8vw) + 32px);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    flex-wrap: wrap;
+  .site-header__top {
+    border-bottom: 1px solid var(--paper-line);
+    padding: 16px 24px 16px calc(min(64px, 8vw) + 32px);
   }
   .brand {
     font-family: var(--font-display);
@@ -50,28 +48,100 @@ const nav = [
     font-size: 1.15rem;
     color: var(--ink);
     text-decoration: none;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
   }
   .brand__mark { color: var(--red); font-size: 0.8rem; }
-  nav ul {
+
+  .site-nav {
+    background: var(--ink);
+    border-bottom: 2px solid var(--red);
+  }
+  .site-nav__inner {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 0 calc(min(64px, 8vw) + 32px);
+    display: flex;
+    align-items: stretch;
+  }
+  .site-nav ul {
     list-style: none;
     display: flex;
-    gap: 18px;
+    align-items: center;
+    justify-content: space-between;
+    flex: 1;
+    gap: 4px;
     margin: 0;
     padding: 0;
-    flex-wrap: wrap;
   }
-  nav a {
+  .site-nav li { display: flex; }
+  .site-nav a {
+    display: block;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
-    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--paper);
     text-decoration: none;
-    letter-spacing: 0.01em;
+    padding: 14px 10px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
   }
-  nav a:hover { color: var(--red); }
-  @media (max-width: 640px) {
-    .site-header__inner { padding-left: 20px; }
+  .site-nav a:hover,
+  .site-nav a:focus-visible {
+    color: var(--paper);
+    border-bottom-color: var(--red);
+  }
+
+  .nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 40px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+  .nav-toggle span {
+    display: block;
+    height: 2px;
+    background: var(--paper);
+    border-radius: 1px;
+  }
+
+  @media (max-width: 1024px) {
+    .site-header__top { padding-left: 20px; }
+    .site-nav__inner { padding-left: 20px; }
+    .nav-toggle { display: flex; }
+    .site-nav ul {
+      display: none;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      flex-direction: column;
+      align-items: stretch;
+      background: var(--ink);
+      border-top: 1px solid var(--red);
+      padding: 4px 0;
+    }
+    .site-nav ul.is-open { display: flex; }
+    .site-nav li { display: block; }
+    .site-nav a { padding: 12px 20px; border-bottom: none; }
+    .site-nav a:hover, .site-nav a:focus-visible { background: rgba(238, 241, 236, 0.08); }
+    .site-nav { position: relative; }
   }
 </style>
+
+<script>
+  const toggle = document.getElementById('nav-toggle');
+  const menu = document.getElementById('site-menu');
+  toggle?.addEventListener('click', () => {
+    const isOpen = menu?.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', String(Boolean(isOpen)));
+  });
+</script>
