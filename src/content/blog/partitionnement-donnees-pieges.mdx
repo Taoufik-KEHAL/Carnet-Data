@@ -1,0 +1,58 @@
+---
+title: "Comprendre le partitionnement de données et ses pièges"
+description: "Bien choisie, une clé de partition divise par dix le temps d'une requête. Mal choisie, elle crée des millions de petits fichiers et ralentit tout le reste."
+pillar: "big-data-cloud"
+entryNumber: 98
+publishDate: 2026-09-08
+---
+
+Partitionner des données, c'est les organiser physiquement — en répertoires, en fichiers — selon
+la valeur d'une ou plusieurs colonnes, pour qu'un moteur de requête puisse ignorer entièrement
+les partitions qui ne concernent pas la requête, plutôt que de scanner toute la table.
+
+## Le principe du partition pruning
+
+```sql
+SELECT *
+FROM evenements
+WHERE date_evenement = '2026-09-08'
+```
+
+Avec une table partitionnée par `date_evenement`, cette requête ne lit que le répertoire
+correspondant à cette date, pas l'historique entier. Sans partitionnement, le moteur scanne
+toute la table puis filtre — sur une table de plusieurs années de données, la différence de
+coût et de latence est considérable.
+
+## Choisir la bonne clé
+
+La clé de partition idéale correspond au filtre le plus fréquent des requêtes réelles sur la
+table — souvent une date, parfois une région ou un identifiant de client majeur. Partitionner
+sur une colonne peu filtrée dans les requêtes n'apporte aucun bénéfice de pruning et ajoute
+simplement de la complexité.
+
+## Le piège du sur-partitionnement
+
+```
+# Mauvais : partition par (date, heure, client_id)
+# → des millions de partitions, chacune avec quelques kilo-octets de données
+```
+
+Partitionner trop finement — par heure plutôt que par jour, ou en ajoutant une colonne à forte
+cardinalité comme un identifiant client — produit le problème inverse : une multitude de petits
+fichiers, chacun avec un coût fixe de métadonnées et d'ouverture de fichier qui finit par dominer
+le temps de requête. Un répertoire avec cent mille fichiers de quelques kilo-octets est souvent
+plus lent à scanner qu'une poignée de fichiers de taille raisonnable, même si le volume total de
+données est identique.
+
+## Un compromis à mesurer, pas à deviner
+
+```python
+# Repartitionner après écriture pour viser une taille de fichier cible
+df.repartition(200).write.partitionBy("date_evenement").parquet(chemin)
+```
+
+La bonne granularité de partitionnement se mesure sur les requêtes réelles de la table, pas sur
+une intuition a priori — viser des fichiers de l'ordre de 100 Mo à 1 Go chacun est un repère
+courant sur Spark et les moteurs columnar, mais le bon chiffre dépend du moteur de requête et du
+pattern d'accès. Repartitionner une table existante a un coût (réécriture complète), ce qui rend
+le choix initial d'autant plus important à ne pas traiter comme un détail.

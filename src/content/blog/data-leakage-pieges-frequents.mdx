@@ -1,0 +1,69 @@
+---
+title: "Fuite de données (data leakage) : les pièges les plus fréquents"
+description: "Un modèle qui obtient 98 % de précision en validation et s'effondre en production n'a presque jamais un problème de déploiement — il a presque toujours une fuite de données."
+pillar: "ml-fondamentaux"
+entryNumber: 112
+publishDate: 2026-10-17
+---
+
+La fuite de données (data leakage) désigne toute situation où une information indisponible au
+moment réel de la prédiction se retrouve, directement ou indirectement, dans les données
+d'entraînement ou de validation — produisant une performance mesurée bien supérieure à la
+performance réelle en production.
+
+## Fuite temporelle : la plus fréquente
+
+```python
+# Faux : split aléatoire sur des données temporelles
+X_train, X_test = train_test_split(X, shuffle=True)
+
+# Correct : split chronologique, le test est toujours postérieur au train
+X_train = X[X["date"] < date_coupure]
+X_test = X[X["date"] >= date_coupure]
+```
+
+Un split aléatoire classique, appliqué à des données avec une dimension temporelle, laisse des
+exemples du futur dans le jeu d'entraînement et des exemples du passé dans le jeu de test — le
+modèle « voit » indirectement des informations postérieures à certaines prédictions qu'il doit
+faire. En production, un modèle ne prédit jamais que sur des données futures par rapport à son
+entraînement ; le split doit reproduire cette contrainte.
+
+## Fuite via le preprocessing avant split
+
+```python
+# Faux : normaliser avant de séparer train/test
+X_norm = (X - X.mean()) / X.std()  # la moyenne inclut déjà le jeu de test
+X_train, X_test = train_test_split(X_norm)
+
+# Correct : fit le preprocessing uniquement sur train
+X_train, X_test = train_test_split(X)
+moyenne, ecart_type = X_train.mean(), X_train.std()
+X_test_norm = (X_test - moyenne) / ecart_type  # transform seulement
+```
+
+Calculer une statistique (moyenne, écart-type, fréquences d'encodage) sur l'ensemble des données
+avant de séparer train et test fait fuiter de l'information du jeu de test dans la
+transformation appliquée au jeu d'entraînement — une fuite discrète, qui ne produit pas d'erreur
+visible mais gonfle la performance mesurée.
+
+## Fuite via des features proxy de la cible
+
+```
+Exemple classique : prédire le churn avec une feature "date de résiliation" renseignée
+→ cette feature n'existe que pour les clients qui ont déjà résilié, donc encode la cible elle-même
+```
+
+Une feature calculée après l'événement qu'on cherche à prédire, ou qui dérive directement de
+données qui n'existeraient tout simplement pas au moment réel de la prédiction, donne au modèle
+un raccourci qu'il n'aura jamais en production. Ce type de fuite se repère en se demandant,
+feature par feature : cette information serait-elle disponible au moment exact où le modèle doit
+produire sa prédiction, en production, pour un nouvel exemple ?
+
+## Comment la détecter
+
+Une performance anormalement élevée par rapport à la difficulté intuitive du problème est le
+premier signal d'alerte. Au-delà de l'intuition, examiner les features les plus importantes du
+modèle (feature importance, SHAP) révèle souvent la fuite directement : une variable au pouvoir
+prédictif disproportionné, en tête de l'importance, mérite systématiquement d'être questionnée
+sur sa disponibilité réelle au moment de la prédiction, avant d'être acceptée comme un signal
+légitime.

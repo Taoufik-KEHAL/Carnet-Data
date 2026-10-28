@@ -1,0 +1,55 @@
+---
+title: "Data mesh : au-delà du buzzword"
+description: "Décentraliser la propriété des données vers les équipes métier n'est pas un choix technique — c'est un changement d'organisation, avec une couche technique derrière."
+pillar: "big-data-cloud"
+entryNumber: 108
+publishDate: 2026-10-06
+---
+
+Le data mesh répond à un problème précis : une équipe data centrale, unique point de passage
+pour toute donnée de l'entreprise, devient un goulot d'étranglement à mesure que l'organisation
+grandit — elle ne connaît pas le contexte métier aussi bien que les équipes qui produisent la
+donnée, et chaque nouvelle demande passe par une file d'attente commune.
+
+## Les quatre principes, pas une techno
+
+Le data mesh n'est pas un produit à installer, mais quatre principes organisationnels. Domain
+ownership : chaque domaine métier (ventes, logistique, support) possède et maintient ses propres
+données, plutôt que de les transférer à une équipe data centrale. Data as a product : chaque
+domaine traite ses données comme un produit destiné à d'autres équipes — documentées, avec un
+niveau de qualité garanti, découvrables. Self-serve infrastructure : une plateforme commune
+fournit les outils (stockage, pipelines, catalogues) pour que chaque domaine puisse publier ses
+données sans dépendre d'une équipe centrale pour chaque étape. Federated governance : des règles
+communes (standards de nommage, de sécurité, de conformité) s'appliquent à tous les domaines,
+définies collectivement plutôt qu'imposées unilatéralement.
+
+## Ce que ça implique concrètement
+
+```yaml
+# Exemple de contrat de données publié par un domaine
+nom: commandes_ventes
+proprietaire: equipe-ventes
+sla: fraicheur < 1h, disponibilite 99.5%
+schema: [...]
+contact: #canal-ventes-data
+```
+
+Un domaine qui publie des données comme un produit s'engage sur un contrat explicite — fraîcheur,
+disponibilité, stabilité du schéma — pas seulement sur l'existence d'une table quelque part. Ce
+contrat permet à d'autres équipes de consommer la donnée en confiance, sans devoir vérifier
+manuellement sa fiabilité à chaque usage.
+
+## Ce que ça n'est pas
+
+Le data mesh n'est pas une excuse pour abandonner toute gouvernance centrale, ni pour que chaque
+équipe réinvente son propre stack de données — la plateforme self-serve commune et la
+gouvernance fédérée existent précisément pour éviter cette dérive. Une organisation qui adopte un
+vocabulaire de data mesh sans construire cette plateforme commune obtient surtout une
+fragmentation incontrôlée des données, pas les bénéfices visés.
+
+## Pour qui ça a du sens
+
+Le data mesh répond à un problème d'échelle organisationnelle — de nombreux domaines métier
+autonomes, une équipe data centrale saturée. Une organisation de taille modeste, avec une seule
+équipe data capable de répondre aux besoins dans des délais raisonnables, n'a généralement rien à
+gagner à adopter cette complexité organisationnelle avant d'en ressentir réellement le besoin.

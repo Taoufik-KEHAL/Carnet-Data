@@ -1,0 +1,62 @@
+---
+title: "Tests multiples : le problème des comparaisons multiples"
+description: "Tester vingt hypothèses au seuil de 5 % chacune ne donne pas 5 % de chances de se tromper au global — ça en donne beaucoup plus, silencieusement."
+pillar: "data-analysis"
+entryNumber: 105
+publishDate: 2026-09-28
+---
+
+Un seuil de significativité de 5 % signifie accepter 5 % de chances de conclure à tort qu'un
+effet existe, pour un test donné. Répéter ce test sur vingt segments, vingt métriques, ou vingt
+variantes, et le problème change de nature : la probabilité qu'au moins un test soit
+significatif par pur hasard grimpe bien au-delà de 5 %.
+
+## Le calcul qui rend le problème visible
+
+```python
+# Probabilité d'au moins un faux positif parmi n tests indépendants à seuil 5%
+n = 20
+p_au_moins_un_faux_positif = 1 - (1 - 0.05) ** n
+print(f"{p_au_moins_un_faux_positif:.1%}")  # 64.2 %
+```
+
+Avec vingt tests indépendants, la probabilité d'obtenir au moins un résultat « significatif » par
+pur hasard dépasse 64 %, pas 5 %. Tester de nombreux segments dans un A/B test, ou de nombreuses
+métriques secondaires, sans ajuster le seuil revient à chercher un résultat positif jusqu'à en
+trouver un — qui n'a souvent rien d'un effet réel.
+
+## La correction de Bonferroni
+
+```python
+alpha_global = 0.05
+nb_tests = 20
+alpha_ajuste = alpha_global / nb_tests  # 0.0025
+```
+
+La méthode la plus simple divise le seuil de significativité par le nombre de tests effectués —
+chaque test individuel doit atteindre un seuil beaucoup plus strict pour être retenu. Simple et
+rigoureuse, mais conservatrice : avec beaucoup de tests, le seuil ajusté devient si strict que des
+effets réels, mais modérés, passent sous le radar (augmentation du risque de faux négatifs).
+
+## Benjamini-Hochberg, moins conservateur
+
+```python
+from statsmodels.stats.multitest import multipletests
+
+rejet, p_ajustees, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+```
+
+Plutôt que de contrôler la probabilité d'un seul faux positif (Bonferroni), la méthode
+Benjamini-Hochberg contrôle le taux attendu de faux positifs parmi les résultats déclarés
+significatifs (False Discovery Rate) — un compromis moins strict, qui garde plus de puissance
+statistique tout en limitant le risque global, particulièrement adapté quand le nombre de tests
+est élevé (analyse de nombreux segments, tests génomiques, etc.).
+
+## Le vrai réflexe : décider des tests avant de les lancer
+
+La correction statistique répare un problème qu'il vaut mieux éviter en amont : définir à
+l'avance les métriques et segments qu'on va tester, plutôt que d'explorer librement les données
+après coup pour voir ce qui ressort. Une analyse exploratoire reste légitime, mais ses résultats
+doivent être traités comme des hypothèses à confirmer sur de nouvelles données, pas comme des
+conclusions en soi — la distinction entre génération d'hypothèses et test d'hypothèses est ce
+que les comparaisons multiples, sans discipline, effacent en pratique.

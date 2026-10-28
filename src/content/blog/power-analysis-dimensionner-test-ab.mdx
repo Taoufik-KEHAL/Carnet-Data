@@ -1,0 +1,62 @@
+---
+title: "Power analysis : dimensionner un test A/B avant de le lancer"
+description: "Lancer un test A/B sans savoir combien d'utilisateurs il faut revient à ne jamais savoir si un résultat non significatif reflète une absence d'effet ou un manque de données."
+pillar: "data-analysis"
+entryNumber: 110
+publishDate: 2026-10-12
+---
+
+Un test A/B qui ne détecte aucune différence significative peut vouloir dire deux choses très
+différentes : il n'y a vraiment pas d'effet, ou le test n'avait tout simplement pas assez de
+données pour détecter l'effet qui existe. La power analysis, faite avant de lancer le test,
+évite cette ambiguïté.
+
+## Les quatre paramètres liés entre eux
+
+```python
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
+
+effet = proportion_effectsize(0.10, 0.12)  # passer de 10% à 12% de conversion
+analyse = NormalIndPower()
+n_requis = analyse.solve_power(effect_size=effet, alpha=0.05, power=0.8)
+print(f"Taille d'échantillon par groupe : {n_requis:.0f}")
+```
+
+Taille d'effet, seuil de significativité (alpha), puissance statistique, et taille d'échantillon
+sont liés par une même équation — fixer trois d'entre eux détermine le quatrième. En pratique, on
+fixe la taille d'effet minimale qu'on juge intéressante de détecter, alpha à 5 % et la puissance
+à 80 % (valeurs conventionnelles), et on en déduit la taille d'échantillon nécessaire.
+
+## Pourquoi la taille d'effet est le paramètre le plus sensible
+
+```python
+# Détecter un effet de +2 points vs +0.5 point change tout
+for delta in [0.02, 0.01, 0.005]:
+    effet = proportion_effectsize(0.10, 0.10 + delta)
+    n = analyse.solve_power(effect_size=effet, alpha=0.05, power=0.8)
+    print(f"Delta {delta}: {n:.0f} utilisateurs par groupe")
+```
+
+Détecter un petit effet demande un échantillon bien plus grand qu'un gros effet — la relation
+n'est pas linéaire. Vouloir détecter une amélioration de conversion de 0.5 point peut demander
+dix fois plus de trafic que détecter une amélioration de 2 points. Choisir la taille d'effet
+minimale pertinente à détecter — pas la plus petite imaginable — est une décision produit autant
+que statistique.
+
+## Le piège du peeking
+
+Consulter les résultats d'un test en cours et l'arrêter dès qu'un résultat semble significatif
+— avant d'avoir atteint la taille d'échantillon calculée — invalide la power analysis faite en
+amont : la probabilité de tomber sur un résultat significatif par hasard augmente à chaque
+vérification intermédiaire, pour la même raison que le problème des tests multiples. Un test
+A/B dimensionné à l'avance doit tourner jusqu'à la taille d'échantillon prévue avant d'être
+interprété, sauf à utiliser une méthode de test séquentiel conçue spécifiquement pour permettre
+un arrêt anticipé sans ce biais.
+
+## Un calcul qui évite des semaines de test inutiles
+
+Lancer un test sans power analysis mène régulièrement à l'un de ces deux scénarios : un test
+arrêté trop tôt, dont le résultat non significatif ne prouve rien, ou un test qui tourne bien
+plus longtemps que nécessaire, retardant une décision déjà suffisamment étayée. Le calcul se
+fait en quelques lignes, avant de lancer quoi que ce soit.

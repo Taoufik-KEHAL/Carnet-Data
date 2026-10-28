@@ -1,0 +1,57 @@
+---
+title: "Transfer learning : réutiliser un modèle pré-entraîné"
+description: "Repartir d'un modèle déjà entraîné sur des millions d'exemples, plutôt que de zéro, change radicalement ce qu'il est réaliste de faire avec peu de données."
+pillar: "ml-fondamentaux"
+entryNumber: 97
+publishDate: 2026-09-05
+---
+
+Entraîner un grand réseau de neurones de zéro demande des volumes de données et de calcul que la
+plupart des projets n'ont pas. Le transfer learning contourne le problème : partir d'un modèle
+déjà entraîné sur une tâche voisine, souvent sur des millions d'exemples, et l'adapter à son
+propre problème avec beaucoup moins de données.
+
+## Feature extraction vs fine-tuning
+
+Deux stratégies, avec des besoins en données très différents. La feature extraction gèle les
+poids du modèle pré-entraîné et n'entraîne qu'une petite couche finale adaptée à la nouvelle
+tâche — rapide, et fonctionne avec très peu d'exemples. Le fine-tuning dégèle tout ou partie du
+modèle et continue l'entraînement sur les nouvelles données, avec un taux d'apprentissage faible
+— plus coûteux, mais capture mieux les spécificités du nouveau domaine si assez de données sont
+disponibles.
+
+```python
+from torchvision import models
+import torch.nn as nn
+
+modele = models.resnet50(weights="IMAGENET1K_V2")
+for param in modele.parameters():
+    param.requires_grad = False  # feature extraction : on gèle tout
+
+modele.fc = nn.Linear(modele.fc.in_features, nb_classes)  # seule couche entraînée
+```
+
+## Combien de données pour quelle stratégie
+
+Avec quelques centaines d'exemples, la feature extraction est quasiment la seule option
+raisonnable — fine-tuner un modèle de plusieurs millions de paramètres sur si peu de données
+produit du surapprentissage presque immédiatement. Avec plusieurs milliers d'exemples, dégeler
+les dernières couches du modèle et les fine-tuner à faible taux d'apprentissage devient
+pertinent, en gardant les premières couches (features génériques bas niveau) gelées.
+
+## Le piège du domain gap
+
+Le transfer learning suppose une proximité entre la tâche source et la tâche cible. Un modèle
+pré-entraîné sur des photos du quotidien transfère bien vers d'autres photos du quotidien, mal
+vers de l'imagerie médicale ou satellite — les features bas niveau apprises (contours, textures)
+restent utiles, mais les features haut niveau (formes d'objets courants) ne correspondent à rien
+dans le nouveau domaine. Plus l'écart entre domaine source et domaine cible est grand, moins
+geler les premières couches est justifié.
+
+## Un réflexe avant d'entraîner quoi que ce soit
+
+Avant d'envisager d'entraîner un modèle de zéro, vérifier qu'un modèle pré-entraîné pertinent
+existe déjà pour la tâche — sur Hugging Face, TensorFlow Hub, ou torchvision — change
+complètement le budget de données et de calcul nécessaire. Entraîner de zéro ne se justifie
+presque jamais en dehors d'une tâche vraiment inédite ou d'un volume de données suffisant pour
+que l'avantage du transfer learning s'estompe.

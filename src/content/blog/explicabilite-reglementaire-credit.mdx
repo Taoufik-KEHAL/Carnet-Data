@@ -1,0 +1,58 @@
+---
+title: "Explicabilité réglementaire des modèles de crédit"
+description: "Refuser un crédit sans pouvoir dire pourquoi n'est pas une option légale dans la plupart des juridictions — l'explicabilité n'est pas un confort, c'est une obligation."
+pillar: "risk-modeling"
+entryNumber: 99
+publishDate: 2026-09-11
+---
+
+Un modèle de scoring crédit peut refuser un dossier avec une excellente performance prédictive
+et rester pourtant inutilisable en l'état : la réglementation (Equal Credit Opportunity Act aux
+États-Unis, exigences similaires en Europe) impose de pouvoir justifier chaque refus par des
+raisons précises, communicables au client.
+
+## Les reason codes, pas un score global
+
+```python
+import shap
+
+explainer = shap.TreeExplainer(modele)
+valeurs_shap = explainer.shap_values(dossier_refuse)
+
+top_facteurs = sorted(
+    zip(features.columns, valeurs_shap[0]),
+    key=lambda x: abs(x[1]), reverse=True
+)[:4]
+```
+
+Ce que la réglementation exige n'est pas une explication technique du modèle, mais une liste de
+facteurs concrets et actionnables — typiquement les quatre principaux motifs ayant contribué
+négativement à la décision, formulés en langage clair : « ratio d'endettement élevé », « historique
+de crédit court », pas « la feature `debt_to_income_ratio` a une valeur SHAP de -0.34 ».
+
+## SHAP comme outil, pas comme solution clé en main
+
+SHAP donne la contribution de chaque variable à une prédiction individuelle, ce qui correspond
+bien au besoin réglementaire — mais générer des reason codes conformes demande en plus un
+mapping métier entre variables techniques et formulations compréhensibles, une logique de
+sélection du nombre de facteurs à citer, et une traçabilité de la méthode utilisée, documentée
+et stable dans le temps. SHAP calcule les contributions ; le dispositif réglementaire est
+construit autour.
+
+## Modèles interprétables par construction
+
+Une scorecard logistique classique (régression logistique sur variables discrétisées) reste
+largement utilisée en crédit précisément parce que son explicabilité est native — chaque
+coefficient a un sens direct — et ne dépend d'aucune méthode d'approximation post-hoc. Un modèle
+de gradient boosting plus performant en AUC peut rester écarté en production crédit si son gain
+de performance ne compense pas la complexité et le risque réglementaire d'une explicabilité
+rapportée plutôt qu'intrinsèque.
+
+## Explicabilité locale n'est pas interprétabilité globale
+
+Expliquer pourquoi un dossier précis a été refusé (explicabilité locale) ne dit rien sur le
+comportement global du modèle — ses biais systématiques, ses zones d'instabilité, ses
+interactions non désirées entre variables protégées et variables proxy. Un modèle peut produire
+des reason codes individuellement convaincants et rester, en agrégat, discriminatoire sur des
+critères interdits. Les deux niveaux d'explicabilité répondent à des questions différentes et
+doivent être vérifiés séparément.

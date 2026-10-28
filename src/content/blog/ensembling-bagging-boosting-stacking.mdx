@@ -1,0 +1,69 @@
+---
+title: "Ensembling : bagging, boosting, stacking expliqués"
+description: "Les trois grandes familles de méthodes d'ensemble ne combinent pas des modèles pour la même raison — confondre bagging et boosting mène à mal choisir sa méthode."
+pillar: "ml-fondamentaux"
+entryNumber: 107
+publishDate: 2026-10-03
+---
+
+Random Forest, XGBoost et un modèle de stacking combinent tous plusieurs modèles pour en
+produire un plus performant — mais chacun répond à un problème différent, et comprendre lequel
+évite de choisir une méthode d'ensemble pour la mauvaise raison.
+
+## Bagging : réduire la variance
+
+```python
+from sklearn.ensemble import RandomForestClassifier
+
+# Chaque arbre entraîné sur un échantillon bootstrap différent des données
+modele = RandomForestClassifier(n_estimators=200, max_features="sqrt")
+```
+
+Le bagging (bootstrap aggregating) entraîne de nombreux modèles identiques en structure, chacun
+sur un échantillon aléatoire des données tiré avec remise, puis moyenne leurs prédictions. Des
+modèles individuellement instables (un arbre de décision profond change beaucoup selon les
+données d'entraînement) deviennent collectivement stables, parce que leurs erreurs individuelles,
+non corrélées entre elles, s'annulent en partie à la moyenne. Le bagging réduit la variance, pas
+le biais — un ensemble de modèles systématiquement biaisés dans la même direction reste biaisé.
+
+## Boosting : réduire le biais
+
+```python
+from xgboost import XGBClassifier
+
+# Chaque arbre corrige les erreurs résiduelles du précédent
+modele = XGBClassifier(n_estimators=300, learning_rate=0.05, max_depth=4)
+```
+
+Le boosting entraîne les modèles séquentiellement, chacun se concentrant sur les erreurs du
+précédent — un arbre faible corrige un peu, le suivant corrige ce qu'il reste. Contrairement au
+bagging, les modèles ne sont pas indépendants : chacun dépend explicitement des erreurs
+accumulées jusque-là. Le boosting réduit principalement le biais, ce qui le rend plus sensible au
+surapprentissage qu'un bagging — d'où l'importance de l'early stopping et d'un taux
+d'apprentissage faible en boosting.
+
+## Stacking : combiner des modèles hétérogènes
+
+```python
+from sklearn.ensemble import StackingClassifier
+from sklearn.linear_model import LogisticRegression
+
+modele = StackingClassifier(
+    estimators=[("rf", RandomForestClassifier()), ("xgb", XGBClassifier())],
+    final_estimator=LogisticRegression(),
+)
+```
+
+Le stacking entraîne des modèles de nature différente (une forêt aléatoire, un gradient
+boosting, un réseau de neurones) en parallèle, puis un modèle final — le méta-modèle — apprend
+à combiner leurs prédictions. L'intérêt vient de la diversité : des modèles qui se trompent sur
+des exemples différents apportent une information complémentaire que le méta-modèle apprend à
+exploiter, un gain que combiner des modèles très similaires n'apporte pas.
+
+## Le piège commun : empiler sans diversité réelle
+
+Un ensemble — bagging, boosting ou stacking — n'apporte un gain que si les modèles combinés
+commettent des erreurs au moins partiellement différentes. Faire du stacking avec plusieurs
+variantes proches d'un même algorithme de gradient boosting ajoute de la complexité
+d'infrastructure et de maintenance sans gain de performance notable face à un seul modèle bien
+tuné — la diversité des erreurs, pas le nombre de modèles, est ce qui fait un ensemble efficace.

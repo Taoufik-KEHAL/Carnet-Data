@@ -1,0 +1,60 @@
+---
+title: "Introduction à Apache Iceberg : un table format pour le data lake"
+description: "Un data lake de fichiers Parquet bruts n'offre ni transactions ni schéma évolutif — Iceberg ajoute une couche de table au-dessus, sans changer le stockage sous-jacent."
+pillar: "big-data-cloud"
+entryNumber: 103
+publishDate: 2026-09-22
+---
+
+Un data lake constitué de fichiers Parquet posés dans des répertoires S3 ou GCS fonctionne, mais
+hérite des limites du système de fichiers sous-jacent : pas de transactions, un schéma fragile à
+faire évoluer, et une découverte de fichiers à scanner qui devient lente à mesure que leur nombre
+grandit. Un table format comme Iceberg ajoute une couche de métadonnées au-dessus de ces mêmes
+fichiers pour résoudre ces problèmes, sans changer le format de stockage lui-même.
+
+## Ce que ça résout concrètement
+
+```sql
+-- Évolution de schéma sans réécrire les données existantes
+ALTER TABLE ventes ADD COLUMN canal STRING;
+
+-- Transaction atomique, visible d'un coup ou pas du tout
+MERGE INTO ventes USING maj_quotidienne
+  ON ventes.id = maj_quotidienne.id
+  WHEN MATCHED THEN UPDATE SET *
+  WHEN NOT MATCHED THEN INSERT *;
+```
+
+Une table Hive classique identifie ses fichiers par convention de répertoire (partition =
+sous-dossier) ; ajouter une colonne ou changer de schéma de partitionnement implique souvent de
+réécrire les données. Iceberg garde un catalogue de métadonnées explicite listant chaque fichier
+de données, ce qui permet de faire évoluer le schéma et le partitionnement sans toucher aux
+fichiers Parquet existants.
+
+## Time travel et snapshots
+
+```sql
+SELECT * FROM ventes FOR VERSION AS OF 8761254309876543210;
+SELECT * FROM ventes FOR TIMESTAMP AS OF '2026-09-01 00:00:00';
+```
+
+Chaque écriture crée un nouveau snapshot immuable de la table, référencé dans les métadonnées —
+interroger un état antérieur de la table, déboguer une anomalie introduite par un batch récent,
+ou reproduire un résultat pour un audit devient une simple requête, sans backup séparé à gérer.
+
+## Iceberg vs Delta Lake
+
+Les deux résolvent un problème similaire — transactions ACID, évolution de schéma, time travel —
+avec des différences d'implémentation plutôt que d'objectif. Delta Lake, porté par Databricks,
+s'intègre plus naturellement dans un écosystème Databricks/Spark ; Iceberg, né chez Netflix et
+désormais projet Apache indépendant, vise une neutralité vis-à-vis du moteur de requête
+(Spark, Trino, Flink, Snowflake le supportent tous nativement). Le choix dépend davantage de
+l'écosystème déjà en place que d'une différence fonctionnelle tranchée.
+
+## Ce qu'Iceberg ne change pas
+
+La couche de métadonnées améliore la fiabilité et la flexibilité des opérations sur la table,
+mais ne change rien à la qualité des données qui y sont écrites, ni au coût de stockage des
+snapshots historiques conservés — un `VACUUM` ou une politique de rétention des anciens snapshots
+reste nécessaire pour éviter une accumulation silencieuse de fichiers orphelins et de coûts de
+stockage.

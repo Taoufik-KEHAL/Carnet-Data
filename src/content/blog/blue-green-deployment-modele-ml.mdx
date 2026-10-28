@@ -1,0 +1,52 @@
+---
+title: "Blue-green deployment pour un modèle ML"
+description: "Faire tourner deux environnements de production identiques et basculer le trafic de l'un à l'autre d'un coup rend un rollback aussi rapide que le déploiement lui-même."
+pillar: "mlops"
+entryNumber: 101
+publishDate: 2026-09-16
+---
+
+Le blue-green deployment maintient deux environnements de production complets et identiques —
+« blue » (la version actuelle, qui sert le trafic) et « green » (la nouvelle version, déployée mais
+pas encore exposée). Une fois green validé, le routeur bascule tout le trafic d'un coup.
+
+## Le principe
+
+```
+Avant bascule : routeur → blue (modèle actuel)   | green (nouveau modèle, en attente)
+Bascule       : routeur → green (nouveau modèle) | blue (ancien, conservé en standby)
+```
+
+Contrairement à un canary release qui expose progressivement une fraction croissante du trafic,
+le blue-green bascule tout d'un coup, après avoir validé green hors trafic réel (tests de charge,
+tests de fumée, validation manuelle). Le rollback consiste à rebasculer le routeur vers blue —
+une opération de configuration instantanée, puisque blue tourne toujours, inchangé.
+
+## Pourquoi ça change la nature du rollback
+
+```python
+def router(requete):
+    environnement_actif = config.get("environnement_actif")  # "blue" ou "green"
+    return environnements[environnement_actif].predict(requete)
+```
+
+La différence essentielle avec un déploiement classique : revenir en arrière ne nécessite pas de
+redéployer l'ancienne version — elle n'a jamais été arrêtée. Un rollback redevient aussi rapide
+et fiable qu'un changement de configuration, ce qui change concrètement la tolérance au risque
+qu'on peut se permettre lors d'une mise en production.
+
+## Le vrai coût : doubler l'infrastructure
+
+Faire tourner deux environnements de production complets, même temporairement, double le coût
+d'infrastructure pendant la fenêtre de transition. Pour un modèle servant un trafic modeste, ce
+coût reste négligeable ; pour un service à forte volumétrie avec des ressources GPU dédiées, il
+devient un facteur de décision réel face à des alternatives moins coûteuses comme le canary
+release.
+
+## Blue-green ne dispense pas de validation hors trafic
+
+La bascule étant binaire et immédiate, toute la charge de la détection de problème repose sur la
+validation effectuée avant bascule — tests automatisés, tests de charge, comparaison des
+prédictions sur un échantillon représentatif. Un canary release détecte certains problèmes en
+production réelle, progressivement ; un blue-green n'a pas cette marge, ce qui rend la rigueur
+de la validation pré-bascule d'autant plus importante.

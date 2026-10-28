@@ -1,0 +1,66 @@
+---
+title: "Imputation des données manquantes : méthodes et pièges"
+description: "Remplacer une valeur manquante par la moyenne est presque toujours la première chose qu'on apprend — et presque toujours la mauvaise réponse par défaut."
+pillar: "data-analysis"
+entryNumber: 100
+publishDate: 2026-09-13
+---
+
+Avant de choisir une méthode d'imputation, une question précède toutes les autres : pourquoi la
+donnée manque-t-elle ? La réponse détermine si l'imputer est raisonnable, et comment.
+
+## MCAR, MAR, MNAR
+
+Trois mécanismes, aux conséquences très différentes. MCAR (missing completely at random) :
+l'absence ne dépend de rien, ni des autres variables ni de la valeur manquante elle-même —
+imputer est relativement sûr. MAR (missing at random) : l'absence dépend d'autres variables
+observées (l'âge est plus souvent manquant pour les anciens formulaires) — imputer en utilisant
+ces autres variables reste valide. MNAR (missing not at random) : l'absence dépend de la valeur
+elle-même (les hauts revenus déclarent moins souvent leur revenu) — aucune imputation standard ne
+corrige ce biais, puisque l'information nécessaire pour le faire est précisément celle qui
+manque.
+
+## Au-delà de la moyenne
+
+```python
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+
+imputer = IterativeImputer(random_state=0)
+X_impute = imputer.fit_transform(X)
+```
+
+Remplacer par la moyenne ou la médiane ignore les corrélations entre variables et réduit
+artificiellement la variance de la colonne imputée. `IterativeImputer` modélise chaque variable
+à valeurs manquantes en fonction des autres, itérativement — une approche nettement plus fidèle
+à la structure réelle des données, au prix d'un coût de calcul plus élevé.
+
+## Le piège de la fuite de données
+
+```python
+# Faux : imputer avant de séparer train et test
+imputer.fit(X)  # a "vu" les valeurs du jeu de test
+X_train, X_test = train_test_split(imputer.transform(X))
+
+# Correct : fit uniquement sur train
+X_train, X_test = train_test_split(X)
+imputer.fit(X_train)
+X_train = imputer.transform(X_train)
+X_test = imputer.transform(X_test)  # transform seulement, pas fit
+```
+
+Ajuster l'imputeur sur l'ensemble des données avant de séparer train et test laisse filtrer de
+l'information du jeu de test dans l'imputation du jeu d'entraînement — une fuite discrète, qui
+gonfle artificiellement la performance mesurée sans que rien dans le code ne le signale
+explicitement.
+
+## Un indicateur de manquance, souvent plus utile que l'imputation elle-même
+
+```python
+X["revenu_etait_manquant"] = X["revenu"].isna().astype(int)
+```
+
+Quand l'absence d'une valeur est elle-même informative (MNAR), ajouter une colonne binaire
+indiquant qu'une valeur était manquante, en plus de l'imputer, permet au modèle de capturer ce
+signal séparément — souvent plus utile que de chercher une méthode d'imputation plus
+sophistiquée pour une absence qui, par nature, encode de l'information.

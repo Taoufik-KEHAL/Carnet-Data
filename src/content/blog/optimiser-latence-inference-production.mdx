@@ -1,0 +1,63 @@
+---
+title: "Gérer la latence d'inférence : du notebook au P99 en production"
+description: "Un modèle rapide en moyenne peut rester inutilisable en production si une requête sur cent met dix fois plus de temps que les autres."
+pillar: "mlops"
+entryNumber: 106
+publishDate: 2026-09-30
+---
+
+Mesurer la latence d'un modèle par sa moyenne masque exactement ce qui compte en production :
+le comportement de la traîne, les requêtes les plus lentes, celles qui déterminent si un service
+respecte son contrat de latence ou non.
+
+## Pourquoi le P99 compte plus que la moyenne
+
+```python
+import numpy as np
+
+latences = mesurer_latences(modele, requetes_test)
+print(f"Moyenne : {np.mean(latences):.0f}ms")
+print(f"P50     : {np.percentile(latences, 50):.0f}ms")
+print(f"P99     : {np.percentile(latences, 99):.0f}ms")
+```
+
+Un P99 de 800ms avec une moyenne de 50ms signifie qu'une requête sur cent prend seize fois plus
+de temps que la médiane — pour un service à fort trafic, ça représente des milliers de requêtes
+lentes par jour, suffisant pour dégrader l'expérience utilisateur ou déclencher des timeouts en
+aval, alors que le tableau de bord affichant la moyenne paraît parfaitement sain.
+
+## D'où vient la traîne
+
+Les causes typiques d'une traîne de latence élevée : garbage collection dans un service managé,
+cold start d'une fonction serverless après une période d'inactivité, contention sur un modèle
+partagé entre plusieurs requêtes simultanées, ou appels réseau vers une feature store distante
+dont la latence varie. Chaque cause demande un diagnostic et un remède différents — mesurer sans
+distinguer ces sources mène à des optimisations qui n'attaquent pas le vrai goulot
+d'étranglement.
+
+## Les leviers courants
+
+```python
+# Batching : regrouper plusieurs requêtes en un seul appel GPU
+predictions = modele.predict_batch(requetes_accumulees)
+
+# Caching : éviter de recalculer une prédiction identique récente
+@cache(ttl=60)
+def predire(features_hash):
+    return modele.predict(features)
+```
+
+Le batching amortit le coût fixe d'un appel GPU sur plusieurs requêtes, au prix d'un léger délai
+d'attente pour constituer le lot — un compromis pertinent si la latence individuelle tolère ce
+délai. Le caching évite de recalculer une prédiction pour des entrées identiques ou proches
+récentes — utile quand la distribution des requêtes présente une redondance réelle, inutile
+sinon. La quantization du modèle (poids en précision réduite) réduit le temps de calcul par
+requête directement, au prix d'une perte de précision à valider avant déploiement.
+
+## Mesurer en conditions réelles, pas en notebook
+
+Un modèle testé en notebook, sur un batch de requêtes déjà chargées en mémoire, ne révèle rien
+de la latence réseau, de la sérialisation, ou de la contention en charge concurrente d'un
+service de production réel. Les tests de charge — simuler un trafic concurrent représentatif,
+mesurer le P99 sous charge plutôt qu'au repos — restent la seule façon fiable de savoir si un
+modèle respectera son contrat de latence une fois en production.

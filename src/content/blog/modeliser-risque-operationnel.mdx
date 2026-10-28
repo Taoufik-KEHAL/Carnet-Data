@@ -1,0 +1,62 @@
+---
+title: "Risque opérationnel : modéliser les pertes rares"
+description: "Un risque de crédit ou de marché se mesure sur des milliers d'observations. Un risque opérationnel majeur, par définition, s'observe rarement — et se modélise autrement."
+pillar: "risk-modeling"
+entryNumber: 109
+publishDate: 2026-10-09
+---
+
+Le risque opérationnel — fraude interne, panne système majeure, erreur de processus, événement
+externe — se caractérise par des pertes rares mais potentiellement très lourdes, à l'opposé du
+risque de crédit où de nombreuses observations permettent des méthodes statistiques classiques.
+Modéliser ce type de risque demande une approche adaptée à cette rareté.
+
+## L'approche Loss Distribution Approach (LDA)
+
+```python
+# Deux distributions distinctes, combinées par simulation
+freq = np.random.poisson(lam=12, size=n_simulations)  # fréquence annuelle d'incidents
+severite = lognorm.rvs(s=1.5, scale=50000, size=freq.sum())  # sévérité par incident
+
+pertes_annuelles = [
+    severite[debut:debut+f].sum()
+    for debut, f in zip(np.cumsum([0] + list(freq[:-1])), freq)
+]
+```
+
+La LDA sépare la modélisation en deux composantes : une distribution de fréquence (combien
+d'incidents par an, souvent une loi de Poisson) et une distribution de sévérité (le coût de
+chaque incident, souvent une loi à queue épaisse comme la lognormale). La combinaison par
+simulation Monte Carlo produit une distribution de la perte annuelle totale, dont on peut
+extraire une VaR opérationnelle au seuil réglementaire souhaité.
+
+## Pourquoi des distributions à queue épaisse
+
+Les incidents opérationnels majeurs — une fraude massive, une panne système prolongée — ne
+suivent pas une distribution normale : la plupart des incidents sont mineurs, et une minorité
+rare est disproportionnellement coûteuse. Une lognormale, une loi de Pareto généralisée, ou une
+approche de théorie des valeurs extrêmes (Extreme Value Theory) pour la queue de la distribution
+capturent mieux ce comportement qu'une hypothèse de normalité, qui sous-estimerait
+systématiquement la probabilité des pertes les plus sévères.
+
+## La limite des données internes
+
+```
+Base de données internes : 8 ans d'historique, 94 incidents enregistrés
+→ largement insuffisant pour estimer la queue de la distribution avec confiance
+```
+
+Le vrai défi méthodologique n'est pas le modèle, mais la donnée : la plupart des organisations
+n'ont tout simplement pas assez d'incidents majeurs dans leur historique interne pour estimer
+fiablement la queue de la distribution de sévérité. Les cadres réglementaires (Bâle II/III pour
+les banques) recommandent d'enrichir les données internes avec des bases de données externes
+(incidents sectoriels partagés) et une analyse de scénarios construite avec des experts métier,
+précisément pour compenser cette rareté structurelle.
+
+## Ce qu'un modèle de risque opérationnel ne peut pas prédire
+
+Contrairement à un modèle de risque de crédit qui généralise des patterns observés sur de
+nombreux cas similaires, un modèle de risque opérationnel estime une distribution de pertes
+possibles, pas un événement précis à venir — son objectif est de dimensionner un capital de
+réserve suffisant, pas d'anticiper quel incident spécifique se produira. Confondre les deux mène
+à une fausse confiance dans la capacité prédictive du modèle.

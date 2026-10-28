@@ -1,0 +1,54 @@
+---
+title: "Feature flags pour déployer des modèles progressivement"
+description: "Découpler le déploiement du code et l'activation d'un modèle permet de le livrer en production sans l'exposer, puis de l'activer pour qui on veut, quand on veut."
+pillar: "mlops"
+entryNumber: 96
+publishDate: 2026-09-02
+---
+
+Déployer un modèle et l'exposer aux utilisateurs sont deux actions distinctes, qu'on a souvent
+tendance à confondre. Un feature flag les sépare explicitement : le code du nouveau modèle part
+en production, inactif, et une décision séparée — indépendante du déploiement — l'active pour
+tout ou partie du trafic.
+
+## Le principe
+
+```python
+if feature_flags.is_enabled("nouveau_modele_scoring", user=client_id):
+    prediction = modele_v2.predict(features)
+else:
+    prediction = modele_v1.predict(features)
+```
+
+L'activation se fait via un service de flags (LaunchDarkly, Unleash, ou une simple table de
+configuration), pas via un redéploiement. Un problème détecté se corrige en basculant un flag,
+en quelques secondes — pas en réémettant un déploiement complet qui prend lui-même du temps.
+
+## Flags côté modèle, flags côté feature
+
+Deux usages distincts coexistent souvent. Un flag peut activer un modèle entier (bascule
+`modele_v1` / `modele_v2`), ou activer une feature individuelle à l'intérieur d'un même modèle
+(une nouvelle variable d'entrée, calculée mais pas encore utilisée en scoring réel). Le second
+cas permet de valider qu'une feature se calcule correctement en production, en conditions
+réelles, avant de l'intégrer réellement au modèle servi.
+
+## Cibler plutôt que basculer en bloc
+
+```python
+feature_flags.enable(
+    "nouveau_modele_scoring",
+    targeting={"segment": "beta_testers", "pourcentage": 5},
+)
+```
+
+Un flag ciblé — un segment d'utilisateurs internes, puis 5 % du trafic, puis davantage — combine
+naturellement avec une logique de canary release : le flag devient le mécanisme de routage, pas
+seulement un interrupteur binaire.
+
+## Ce qu'un feature flag ne remplace pas
+
+Un flag décide qui voit quoi, mais ne surveille rien par lui-même. Sans monitoring associé
+(latence, taux d'erreur, métrique métier par variante du flag), activer un flag à 100 % du
+trafic sans avoir observé les 5 % précédents revient à sauter l'étape qui justifiait son
+existence. Le flag est l'outil de contrôle, pas le dispositif de détection — les deux doivent
+être construits ensemble, et le second reste indispensable même quand le premier est en place.

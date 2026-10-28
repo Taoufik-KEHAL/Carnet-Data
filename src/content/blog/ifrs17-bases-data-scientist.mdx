@@ -1,0 +1,58 @@
+---
+title: "IFRS 17 : ce qu'un data scientist doit en comprendre"
+description: "La norme comptable IFRS 17 ne touche pas que les actuaires qui la mettent en œuvre — elle redéfinit les données et les granularités attendues de tous les modèles en amont."
+pillar: "risk-modeling"
+entryNumber: 104
+publishDate: 2026-09-25
+---
+
+IFRS 17 est une norme comptable, pas un modèle prédictif — mais sa mise en œuvre dépend
+directement de données et de projections que les équipes data et actuariat produisent en amont,
+ce qui en fait un sujet dont un data scientist en assurance ne peut pas rester à l'écart.
+
+## Le changement de paradigme : des groupes de contrats, pas des contrats individuels
+
+```
+Granularité attendue : regrouper les contrats par
+  - portefeuille (risques gérés ensemble)
+  - cohorte annuelle de souscription
+  - niveau de rentabilité attendue (onéreux / rentable / incertain)
+```
+
+Avant IFRS 17, la comptabilité assurance agrégeait largement les résultats. La norme impose de
+suivre la rentabilité par groupe de contrats homogènes, ce qui demande des projections de flux
+futurs (primes, sinistres, frais) à un niveau de granularité que beaucoup de systèmes existants
+ne produisaient pas nativement.
+
+## La CSM, un concept central
+
+La Contractual Service Margin représente le profit futur non encore reconnu d'un groupe de
+contrats, libéré progressivement dans le compte de résultat à mesure que le service d'assurance
+est rendu. Son calcul initial, puis sa réévaluation à chaque clôture, dépend directement des
+hypothèses actuarielles utilisées — taux de résiliation, fréquence et sévérité des sinistres,
+taux d'actualisation — les mêmes hypothèses que celles produites par des modèles de risque
+classiques (churn, provisionnement).
+
+## Ce que ça change concrètement pour les modèles en amont
+
+```python
+# Avant : une hypothèse de résiliation par produit, stable
+taux_resiliation = {"auto": 0.12, "habitation": 0.08}
+
+# Avec IFRS 17 : une hypothèse par groupe de contrats, documentée et traçable
+taux_resiliation_par_groupe = modele_churn.predict(groupes_de_contrats)
+```
+
+Les hypothèses utilisées dans le calcul de la CSM doivent être documentées, justifiées, et
+sensibles à des tests de variation réglementaires (sensitivity analysis) — un modèle de churn ou
+de provisionnement dont les sorties alimentent IFRS 17 hérite d'exigences de traçabilité et de
+reproductibilité plus strictes que celles d'un modèle utilisé uniquement pour du pilotage
+interne.
+
+## Une norme comptable qui tire la donnée vers plus de granularité
+
+Le principal impact pour une équipe data n'est pas de construire de nouveaux modèles
+spécifiquement pour IFRS 17, mais d'adapter la granularité, la traçabilité et la fréquence de
+mise à jour des hypothèses déjà produites par les modèles existants — un projet souvent plus
+proche de l'ingénierie de données et de la gouvernance de modèle que de la modélisation
+elle-même.

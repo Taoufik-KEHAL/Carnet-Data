@@ -1,0 +1,69 @@
+---
+title: "Compression de modèles : quantization, pruning, distillation"
+description: "Un modèle précis mais trop gros ou trop lent pour sa cible de déploiement n'a pas besoin d'être réentraîné à zéro — trois techniques permettent de le réduire après coup."
+pillar: "mlops"
+entryNumber: 111
+publishDate: 2026-10-15
+---
+
+Un modèle entraîné pour maximiser la précision sans contrainte de taille ou de latence se
+retrouve souvent trop lourd pour sa cible réelle — un appareil mobile, une fonction serverless
+facturée au temps de calcul, un service avec un budget de latence strict. Trois techniques
+permettent de le réduire après entraînement, avec des compromis différents.
+
+## Quantization : réduire la précision numérique
+
+```python
+import torch
+
+modele_fp32 = charger_modele()  # poids en float32, 4 octets chacun
+modele_int8 = torch.quantization.quantize_dynamic(
+    modele_fp32, {torch.nn.Linear}, dtype=torch.qint8
+)
+```
+
+Les poids d'un modèle sont généralement stockés en float32. Les convertir en int8 (1 octet au
+lieu de 4) divise la taille du modèle par quatre et accélère l'inférence sur du matériel
+optimisé pour le calcul entier — au prix d'une perte de précision numérique, généralement faible
+si bien calibrée, mais à valider sur les métriques métier avant déploiement, pas seulement sur
+la taille du fichier.
+
+## Pruning : retirer les poids les moins utiles
+
+```python
+import torch.nn.utils.prune as prune
+
+prune.l1_unstructured(couche, name="weight", amount=0.3)  # retire 30% des poids
+```
+
+De nombreux réseaux de neurones sont largement sur-paramétrés : une fraction importante des
+poids contribue peu à la sortie finale. Le pruning identifie et met à zéro ces poids — le
+pruning non structuré (poids individuels) réduit la taille du fichier mais demande un matériel
+spécifique pour en tirer un gain de vitesse réel ; le pruning structuré (neurones ou canaux
+entiers retirés) accélère l'inférence sur du matériel standard, au prix d'une perte de précision
+généralement plus marquée à amount égal.
+
+## Distillation : entraîner un petit modèle à imiter un grand
+
+```python
+# Le petit modèle apprend des probabilités du grand modèle, pas seulement des labels
+perte = (
+    alpha * perte_cross_entropy(sortie_eleve, labels)
+    + (1 - alpha) * perte_kl_divergence(sortie_eleve, sortie_professeur)
+)
+```
+
+La distillation entraîne un modèle plus petit (l'élève) à reproduire le comportement d'un grand
+modèle déjà entraîné (le professeur) — pas seulement ses prédictions finales, mais la
+distribution complète de probabilités qu'il produit, qui contient plus d'information que le
+label seul (par exemple, à quel point le professeur hésitait entre deux classes). Un élève bien
+distillé approche souvent la performance du professeur avec une fraction de ses paramètres.
+
+## Le compromis à mesurer, pas à supposer
+
+Les trois techniques se combinent (quantizer un modèle déjà pruné, par exemple) et offrent
+chacune un curseur entre taille/vitesse et précision — mais ce compromis ne se devine pas : il se
+mesure sur les métriques métier réelles, à chaque palier de compression, avant de choisir le
+niveau de compression à déployer. Un gain de taille de 75 % qui coûte 2 points de précision peut
+être un excellent compromis pour un déploiement mobile, et totalement inacceptable pour un
+modèle de scoring crédit soumis à des exigences réglementaires de performance.

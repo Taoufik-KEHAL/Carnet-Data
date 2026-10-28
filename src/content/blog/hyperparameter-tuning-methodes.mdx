@@ -1,0 +1,69 @@
+---
+title: "Hyperparameter tuning : grid search, random search, optimisation bayésienne"
+description: "Tester toutes les combinaisons possibles semble le plus rigoureux — c'est souvent le moins efficace des trois, pour un budget de calcul donné."
+pillar: "ml-fondamentaux"
+entryNumber: 102
+publishDate: 2026-09-19
+---
+
+Trouver les bons hyperparamètres d'un modèle est un problème d'optimisation à part entière, avec
+ses propres méthodes — et l'approche la plus intuitive, tester une grille exhaustive de
+combinaisons, n'est presque jamais la plus efficace.
+
+## Grid search et sa limite combinatoire
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+grille = {"max_depth": [3, 5, 7, 9], "n_estimators": [100, 300, 500], "lr": [0.01, 0.05, 0.1]}
+# 4 × 3 × 3 = 36 combinaisons, chacune évaluée en validation croisée
+```
+
+Le nombre de combinaisons croît en produit du nombre de valeurs testées par paramètre — ajouter
+un quatrième paramètre avec trois valeurs multiplie le coût par trois. Au-delà de deux ou trois
+hyperparamètres, grid search devient vite impraticable en budget de calcul.
+
+## Random search, souvent sous-estimé
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import uniform, randint
+
+distributions = {"max_depth": randint(3, 12), "lr": uniform(0.01, 0.3)}
+recherche = RandomizedSearchCV(modele, distributions, n_iter=50, cv=5)
+```
+
+Un résultat contre-intuitif mais bien établi (Bergstra & Bengio, 2012) : pour un budget de calcul
+fixé, un tirage aléatoire de combinaisons surpasse généralement une grille exhaustive, parce que
+tous les hyperparamètres n'ont pas la même importance — la grille gaspille des évaluations sur
+des variations fines d'un paramètre peu influent, alors que le tirage aléatoire explore plus
+largement l'espace des paramètres réellement déterminants.
+
+## L'optimisation bayésienne, pour aller plus loin
+
+```python
+import optuna
+
+def objectif(trial):
+    max_depth = trial.suggest_int("max_depth", 3, 12)
+    lr = trial.suggest_float("lr", 0.01, 0.3, log=True)
+    modele = entrainer(max_depth=max_depth, lr=lr)
+    return evaluer(modele)
+
+etude = optuna.create_study(direction="maximize")
+etude.optimize(objectif, n_trials=50)
+```
+
+Contrairement au grid et au random search, qui n'apprennent rien des évaluations précédentes,
+l'optimisation bayésienne modélise la relation entre hyperparamètres et performance au fur et à
+mesure, et choisit la combinaison suivante en fonction de ce qui a déjà été observé — pour un
+même budget d'évaluations, elle converge généralement plus vite vers de bonnes régions de
+l'espace de recherche.
+
+## Le piège commun aux trois méthodes
+
+Tuner les hyperparamètres directement sur le jeu de test, même involontairement en consultant sa
+performance à chaque itération pour ajuster l'espace de recherche, transforme le jeu de test en
+jeu de validation déguisé — la performance finale mesurée dessus n'est alors plus un estimateur
+honnête de la performance en production. Le tuning doit se faire en validation croisée sur le
+jeu d'entraînement, le jeu de test restant intouché jusqu'à l'évaluation finale, une seule fois.
