@@ -1,0 +1,69 @@
+---
+title: "Backtester un modèle de VaR : tests de Kupiec et Christoffersen"
+description: "Une VaR à 99 % mal calibrée ne se voit pas à l'œil nu sur un graphique — il faut un test statistique pour savoir si le nombre de dépassements observés est normal ou alarmant."
+pillar: "risk-modeling"
+entryNumber: 114
+publishDate: 2026-10-23
+---
+
+Une VaR à 99 % promet qu'une perte ne devrait dépasser le seuil calculé qu'un jour sur cent, en
+moyenne. Le backtesting vérifie cette promesse après coup : sur l'historique réel, le nombre de
+jours où la perte a effectivement dépassé la VaR correspond-il à peu près à ce qui était promis,
+ou le modèle est-il mal calibré ?
+
+## Compter les violations
+
+```python
+violations = (pertes_reelles > var_predite).astype(int)
+nb_violations = violations.sum()
+nb_jours = len(violations)
+taux_attendu = 0.01  # VaR à 99%
+
+print(f"Violations observées : {nb_violations} sur {nb_jours} jours")
+print(f"Violations attendues : {taux_attendu * nb_jours:.1f}")
+```
+
+Sur 250 jours de trading, une VaR à 99 % bien calibrée devrait produire environ 2,5 violations.
+En observer 0 suggère une VaR trop conservatrice (capital immobilisé inutilement) ; en observer
+10 suggère une VaR qui sous-estime systématiquement le risque réel. La question est de savoir à
+partir de quel écart la différence devient statistiquement significative plutôt que due au
+hasard.
+
+## Le test de Kupiec : le taux de couverture est-il correct
+
+```python
+from scipy.stats import chi2
+
+def test_kupiec(nb_violations, nb_jours, taux_attendu=0.01):
+    taux_observe = nb_violations / nb_jours
+    if taux_observe == 0:
+        return None  # cas limite, log-vraisemblance non définie
+    lr = -2 * (
+        nb_violations * np.log(taux_attendu / taux_observe)
+        + (nb_jours - nb_violations) * np.log((1 - taux_attendu) / (1 - taux_observe))
+    )
+    p_value = 1 - chi2.cdf(lr, df=1)
+    return lr, p_value
+```
+
+Le test de Kupiec (test du ratio de vraisemblance) compare le taux de violations observé au taux
+théorique attendu, et renvoie une p-value : une p-value faible (typiquement < 5 %) indique que
+l'écart entre taux observé et attendu est trop grand pour être attribué au hasard — le modèle de
+VaR est mal calibré en fréquence globale.
+
+## Le test de Christoffersen : les violations sont-elles indépendantes
+
+Le test de Kupiec a une limite : il compte le nombre total de violations, mais ignore leur
+répartition dans le temps. Un modèle avec exactement le bon nombre de violations, mais toutes
+regroupées sur une semaine de crise plutôt que réparties aléatoirement sur l'année, a un problème
+tout aussi réel — le modèle ne s'adapte pas assez vite à un changement de régime de volatilité.
+Le test de Christoffersen complète Kupiec en testant spécifiquement l'indépendance temporelle des
+violations, via une matrice de transition entre jours avec et sans violation.
+
+## Un modèle qui passe les deux tests reste surveillé, pas validé une fois pour toutes
+
+Le backtesting se refait périodiquement, pas une seule fois à la mise en production — un modèle
+correctement calibré sur l'historique utilisé pour le valider peut se dégrader avec un
+changement de régime de marché non vu dans les données d'entraînement. Les régulateurs (Bâle)
+imposent d'ailleurs un backtesting continu, avec des conséquences directes (multiplicateur de
+capital accru) en cas de nombre de violations excessif sur une fenêtre glissante.

@@ -1,0 +1,79 @@
+---
+title: "Feature engineering sur des données géospatiales"
+description: "Une latitude et une longitude brutes n'apprennent presque rien à un modèle — ce sont les distances, les agrégats et les découpages qui en extraient le signal."
+pillar: "data-analysis"
+entryNumber: 115
+publishDate: 2026-10-26
+---
+
+Passer directement une latitude et une longitude à un modèle lui donne deux nombres sans
+structure exploitable — la relation entre position géographique et variable cible est rarement
+linéaire en coordonnées brutes. L'essentiel du travail de feature engineering géospatial consiste
+à transformer la position en features qui capturent une proximité ou une appartenance réellement
+pertinente pour le problème.
+
+## Distance à des points de référence
+
+```python
+from geopy.distance import geodesic
+
+df["distance_centre_ville"] = df.apply(
+    lambda r: geodesic((r.lat, r.lon), (centre_ville_lat, centre_ville_lon)).km,
+    axis=1,
+)
+```
+
+La distance à un ou plusieurs points de référence pertinents — centre-ville, agence la plus
+proche, zone à risque connue — transforme une position absolue en une mesure de proximité
+directement liée au phénomène étudié. Le choix des points de référence doit venir d'une
+hypothèse métier, pas d'un calcul générique : la distance au centre-ville a du sens pour un
+modèle de prix immobilier, beaucoup moins pour un modèle de risque d'inondation.
+
+## Encoder la position en zones discrètes : geohash et H3
+
+```python
+import h3
+
+df["cellule_h3"] = df.apply(
+    lambda r: h3.latlng_to_cell(r.lat, r.lon, resolution=7), axis=1
+)
+agregats_zone = df.groupby("cellule_h3")["cible"].agg(["mean", "count"])
+```
+
+Geohash et H3 (ce dernier développé par Uber) découpent l'espace en cellules hexagonales ou
+rectangulaires de taille contrôlée, permettant d'agréger des observations par zone — densité de
+population, taux de sinistres historique, nombre de points d'intérêt à proximité — sans dépendre
+d'un découpage administratif parfois trop grossier (région) ou trop fin (adresse exacte) pour le
+phénomène étudié. H3 a l'avantage de cellules de taille comparable partout sur le globe,
+contrairement à un découpage par coordonnées pures qui se déforme près des pôles.
+
+## Agrégations spatiales comme features
+
+```python
+df["nb_sinistres_1km"] = df.apply(
+    lambda r: nb_points_dans_rayon(r.lat, r.lon, rayon_km=1, points=historique_sinistres),
+    axis=1,
+)
+```
+
+Compter ou agréger des événements historiques dans un rayon donné autour de chaque observation
+— nombre de sinistres passés à proximité, densité de commerces concurrents, trafic routier moyen
+— transforme un contexte géographique en variable numérique directement utilisable, souvent
+parmi les features les plus prédictives pour des problèmes avec une forte composante spatiale
+(risque assurantiel, immobilier, retail).
+
+## Le piège de la projection et de l'échelle
+
+```python
+# Faux : calculer une distance euclidienne sur lat/lon brutes
+distance_fausse = np.sqrt((lat1 - lat2)**2 + (lon1 - lon2)**2)  # pas une vraie distance
+
+# Correct : utiliser une formule adaptée à la sphère (haversine) ou une projection locale
+```
+
+Un degré de longitude ne correspond pas à la même distance réelle selon la latitude — calculer
+une distance euclidienne directement sur des coordonnées en degrés produit un résultat faux, plus
+l'erreur grandit en s'éloignant de l'équateur. Utiliser une formule adaptée (haversine, geodesic)
+ou reprojeter les coordonnées dans un système métrique local avant tout calcul de distance évite
+cette erreur silencieuse, qui ne produit aucun message d'erreur mais fausse durablement les
+features qui en dépendent.

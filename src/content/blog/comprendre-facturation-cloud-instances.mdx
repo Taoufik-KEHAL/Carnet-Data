@@ -1,0 +1,67 @@
+---
+title: "Comprendre la facturation cloud : réservé, à la demande, spot"
+description: "Le même calcul tourné sur la même machine peut coûter trois fois plus ou trois fois moins, selon le modèle d'achat choisi — et peu de workloads tirent parti du bon par défaut."
+pillar: "big-data-cloud"
+entryNumber: 113
+publishDate: 2026-10-20
+---
+
+Les fournisseurs cloud proposent plusieurs modèles d'achat pour la même capacité de calcul, avec
+des écarts de prix considérables — choisir le mauvais modèle pour un workload donné est l'une
+des façons les plus simples de payer trop cher du cloud, sans que rien ne le signale d'évident
+sur la facture.
+
+## On-demand : flexible, mais le prix de référence
+
+```
+Prix on-demand (base) : $X/heure, payé à l'usage, sans engagement
+```
+
+Le modèle par défaut : payer à l'heure ou à la seconde, sans engagement, résiliable à tout
+moment. C'est le prix le plus élevé des trois modèles, en échange d'une flexibilité totale —
+adapté aux charges imprévisibles ou de très courte durée, mais coûteux pour une charge stable et
+prévisible dans le temps.
+
+## Réservé / Savings plans : l'engagement contre la réduction
+
+```
+Réservation 1 an, paiement initial : réduction ~40%
+Réservation 3 ans, paiement initial : réduction ~60%
+```
+
+S'engager sur un volume de calcul minimal pendant une durée fixée (1 ou 3 ans) en échange d'une
+réduction substantielle — adapté à une charge de base stable et bien connue à l'avance (le
+cluster qui tourne 24/7 toute l'année). L'erreur fréquente est de réserver une capacité
+dimensionnée sur un pic ponctuel plutôt que sur la charge de base réelle, ce qui paie pour une
+capacité inutilisée la majeure partie du temps.
+
+## Spot / Preemptible : le prix le plus bas, sans garantie
+
+```python
+# Une tâche batch tolérante à l'interruption, candidate idéale au spot
+config_cluster = {
+    "type_instance": "spot",
+    "reduction_attendue": "60-90%",
+    "risque": "interruption avec ~2 minutes de préavis",
+}
+```
+
+Les instances spot utilisent la capacité excédentaire du fournisseur à prix fortement réduit
+(souvent 60 à 90 % moins cher que l'on-demand), avec une contrepartie : le fournisseur peut les
+reprendre avec un préavis court si la capacité redevient nécessaire ailleurs. Adapté aux
+workloads tolérants à l'interruption — jobs batch réexécutables, entraînement de modèle avec
+checkpointing fréquent — inadapté à tout service nécessitant une disponibilité continue garantie.
+
+## Faire correspondre le modèle au profil de charge, pas l'inverse
+
+```
+Charge de base stable (serveur applicatif permanent) → réservé / savings plan
+Pics imprévisibles, courte durée                      → on-demand
+Batch tolérant à l'interruption, entraînement ML       → spot
+```
+
+Le gain réel ne vient pas de choisir le modèle le moins cher dans l'absolu, mais de faire
+correspondre chaque composant de l'infrastructure à son profil de charge réel — un cluster mixte,
+combinant une base réservée pour la charge stable, du spot pour les tâches batch tolérantes, et
+de l'on-demand en complément ponctuel, réduit souvent la facture de 40 à 60 % par rapport à un
+cluster entièrement en on-demand, sans changer la capacité de calcul disponible.
